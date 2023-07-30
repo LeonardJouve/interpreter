@@ -104,10 +104,11 @@ func TestNextToken(t *testing.T) {
 		{Type: token.SEMICOLON, Literal: ";"},
 		{Type: token.EOF, Literal: "\x00"},
 	}
+
 	lexer := New(input)
 
 	for i, test := range tests {
-		tok := lexer.nextToken()
+		tok := lexer.NextToken()
 
 		if tok.Type != test.Type {
 			t.Fatalf("[Test %d] Invalid token type: received %q %q, expected %q %q", i, tok.Type, tok.Literal, test.Type, test.Literal)

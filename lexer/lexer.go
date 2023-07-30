@@ -20,7 +20,7 @@ func New(input string) *Lexer {
 	}
 }
 
-func (lexer *Lexer) nextToken() token.Token {
+func (lexer *Lexer) NextToken() token.Token {
 	lexer.readChar()
 	lexer.skipWhitespace()
 
@@ -87,19 +87,17 @@ func (lexer *Lexer) nextToken() token.Token {
 
 func (lexer *Lexer) readIdentifier() token.TokenLiteral {
 	position := lexer.position
-	for isLetter(lexer.char) {
+	for isLetter(lexer.char) && isLetter(lexer.getNextChar()) {
 		lexer.readChar()
 	}
-	lexer.readBackChar()
 	return token.TokenLiteral(lexer.input[position:lexer.readPosition])
 }
 
 func (lexer *Lexer) readNumber() token.TokenLiteral {
 	position := lexer.position
-	for isDigit(lexer.char) {
+	for isDigit(lexer.char) && isDigit(lexer.getNextChar()) {
 		lexer.readChar()
 	}
-	lexer.readBackChar()
 	return token.TokenLiteral(lexer.input[position:lexer.readPosition])
 }
 
@@ -119,16 +117,6 @@ func (lexer *Lexer) getNextChar() byte {
 	} else {
 		return lexer.input[lexer.readPosition]
 	}
-}
-
-func (lexer *Lexer) readBackChar() {
-	if lexer.readPosition <= 0 {
-		lexer.char = 0
-	} else {
-		lexer.char = lexer.input[lexer.position]
-	}
-	lexer.readPosition = lexer.position
-	lexer.position -= 1
 }
 
 func (lexer *Lexer) skipWhitespace() {
