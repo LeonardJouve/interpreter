@@ -15,25 +15,25 @@ const (
 	IDENTIFIER = "IDENTIFIER"
 	INT        = "INT"
 
-	ASSIGN    = "="
-	PLUS      = "+"
-	MINUS     = "-"
-	BANG      = "!"
-	ASTERISX  = "*"
-	SLASH     = "/"
-	EQUAL     = "=="
-	NOT_EQUAL = "!="
+	ASSIGN    = "ASSIGN"
+	PLUS      = "PLUS"
+	MINUS     = "MINUS"
+	BANG      = "BANG"
+	ASTERISX  = "ASTERISX"
+	SLASH     = "SLASH"
+	EQUAL     = "EQUAL"
+	NOT_EQUAL = "NOT_EQUAL"
 
-	LR = "<"
-	GR = ">"
+	LR = "LR"
+	GR = "GR"
 
-	COMMA     = ","
-	SEMICOLON = ";"
+	COMMA     = "COMMA"
+	SEMICOLON = "SEMICOLON"
 
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
+	LPAREN = "LPAREN"
+	RPAREN = "RPAREN"
+	LBRACE = "LBRACE"
+	RBRACE = "RBRACE"
 
 	FUNCTION = "FUNCTION"
 	IF       = "IF"
@@ -52,6 +52,15 @@ var keywords = map[TokenLiteral]TokenType{
 	"let":    LET,
 	"true":   TRUE,
 	"false":  FALSE,
+}
+
+func GetKeywordFromType(tokenType TokenType) (TokenLiteral, bool) {
+	for keyword, tokType := range keywords {
+		if tokenType == tokType {
+			return keyword, true
+		}
+	}
+	return TokenLiteral(""), false
 }
 
 func New(tokenType TokenType, tokenLiteral TokenLiteral) Token {

@@ -1,4 +1,4 @@
-module github.com/leonardjouve/interpreter
+module github.com/LeonardJouve/interpreter
 
 replace leonardjouve/token => ./token
 
