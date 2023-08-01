@@ -59,6 +59,10 @@ func (parser *Parser) addInvalidNextTokenTypeError(received token.Token, expecte
 	parser.addError(fmt.Sprintf("[Error] Invalid next token type: received %s %s, expected %s", received.Type, received.Literal, expected))
 }
 
+func (parser *Parser) addInvalidPrefixError(tokenType token.TokenType) {
+	parser.addError(fmt.Sprintf("[Error] Invalid prefix for %s", tokenType))
+}
+
 func (parser *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{
 		Statements: []ast.Statement{},
@@ -79,6 +83,8 @@ func (parser *Parser) addPrefixParsers() {
 	parser.prefixParsers = map[token.TokenType]prefixParser{
 		token.IDENTIFIER: parser.parseIdentifier,
 		token.INT:        parser.parseIntegerLiteral,
+		token.MINUS:      parser.parsePrefixExpression,
+		token.BANG:       parser.parsePrefixExpression,
 	}
 }
 
@@ -174,10 +180,10 @@ func (parser *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 func (parser *Parser) parseExpression(precedence int) ast.Expression {
 	prefix, ok := parser.prefixParsers[parser.tok.Type]
 	if !ok {
+		parser.addInvalidPrefixError(parser.tok.Type)
 		return nil
 	}
-	leftExpression := prefix()
-	return leftExpression
+	return prefix()
 }
 
 func (parser *Parser) parseIdentifier() ast.Expression {
@@ -200,4 +206,17 @@ func (parser *Parser) parseIntegerLiteral() ast.Expression {
 	integer.Value = value
 
 	return integer
+}
+
+func (parser *Parser) parsePrefixExpression() ast.Expression {
+	prefixExpression := &ast.PrefixExpression{
+		Token:    parser.tok,
+		Operator: string(parser.tok.Literal),
+	}
+
+	parser.nextToken()
+
+	prefixExpression.Right = parser.parseExpression(PREFIX)
+
+	return prefixExpression
 }

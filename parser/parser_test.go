@@ -246,7 +246,7 @@ func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bo
 
 	expectedTokenLiteral := token.TokenLiteral(fmt.Sprintf("%d", value))
 	if integer.TokenLiteral() != expectedTokenLiteral {
-		t.Errorf("[Error] Invalid integer token literal: received %s, expected %d", integer.TokenLiteral(), expectedTokenLiteral)
+		t.Errorf("[Error] Invalid integer token literal: received %s, expected %s", integer.TokenLiteral(), expectedTokenLiteral)
 		return false
 	}
 
