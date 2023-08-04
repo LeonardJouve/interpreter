@@ -98,6 +98,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.BANG:       parser.parsePrefixExpression,
 		token.TRUE:       parser.parseBoolean,
 		token.FALSE:      parser.parseBoolean,
+		token.LPAREN:     parser.parseGroupedExpression,
 	}
 }
 
@@ -290,4 +291,16 @@ func (parser *Parser) parseBoolean() ast.Expression {
 		Token: parser.tok,
 		Value: parser.tok.Type == token.TRUE,
 	}
+}
+
+func (parser *Parser) parseGroupedExpression() ast.Expression {
+	parser.nextToken()
+
+	expression := parser.parseExpression(LOWEST)
+
+	if !parser.expectNextTokenType(token.RPAREN) {
+		return nil
+	}
+
+	return expression
 }
