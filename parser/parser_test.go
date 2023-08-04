@@ -252,3 +252,164 @@ func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bo
 
 	return true
 }
+
+func TestInfixExpressions(t *testing.T) {
+	type InfixTest struct {
+		input    string
+		operator string
+		left     int64
+		right    int64
+	}
+	tests := []InfixTest{
+		{
+			input:    "5 + 15;",
+			operator: "+",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 - 15;",
+			operator: "-",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 * 15;",
+			operator: "*",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 / 15;",
+			operator: "/",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 < 15;",
+			operator: "<",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 > 15;",
+			operator: ">",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 == 15;",
+			operator: "==",
+			left:     5,
+			right:    15,
+		},
+		{
+			input:    "5 != 15;",
+			operator: "!=",
+			left:     5,
+			right:    15,
+		},
+	}
+
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		expectedStatementAmount := 1
+		if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+			t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		}
+
+		statement, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.InfixExpression", program.Statements[0])
+		}
+
+		expression, ok := statement.Value.(*ast.InfixExpression)
+		if !ok {
+			t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.InfixExpression", statement)
+		}
+
+		if expression.Operator != test.operator {
+			t.Fatalf("[Test] Invalid expression operator: received %s, expected %s", expression.Operator, test.operator)
+		}
+
+		if !testIntegerLiteral(t, expression.Left, test.left) {
+			return
+		}
+
+		if !testIntegerLiteral(t, expression.Right, test.right) {
+			return
+		}
+	}
+}
+
+func TestOperatorPrecedenceParsing(t *testing.T) {
+	type PrecedenceOperatorTest struct {
+		input    string
+		expected string
+	}
+	tests := []PrecedenceOperatorTest{
+		{
+			input:    "-a * b",
+			expected: "((-a) * b)",
+		},
+		{
+			input:    "!-a",
+			expected: "(!(-a))",
+		},
+		{
+			input:    "a + b + c",
+			expected: "((a + b) + c)",
+		},
+		{
+			input:    "a + b - c",
+			expected: "((a + b) - c)",
+		},
+		{
+			input:    "a * b * c",
+			expected: "((a * b) * c)",
+		},
+		{
+			input:    "a * b / c",
+			expected: "((a * b) / c)",
+		},
+		{
+			input:    "a + b / c",
+			expected: "(a + (b / c))",
+		},
+		{
+			input:    "a + b * c + d / e - f",
+			expected: "(((a + (b * c)) + (d / e)) - f)",
+		},
+		{
+			input:    "3 + 4; -5 * 5",
+			expected: "(3 + 4)((-5) * 5)",
+		},
+		{
+			input:    "5 > 4 == 3 < 4",
+			expected: "((5 > 4) == (3 < 4))",
+		},
+		{
+			input:    "5 > 4 != 3 < 4",
+			expected: "((5 > 4) != (3 < 4))",
+		},
+		{
+			input:    "3 + 4 * 5 == 3 * 1 + 4 * 5",
+			expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+		},
+	}
+
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		if received := program.String(); received != test.expected {
+			t.Errorf("[Test] Invalid program string: received %s, expected %s", received, test.expected)
+		}
+	}
+}

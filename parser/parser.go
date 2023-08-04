@@ -26,12 +26,23 @@ const (
 	_ int = iota
 	LOWEST
 	EQUALS
-	LESSGREATER
+	LOWERGREATER
 	SUM
 	PRODUCT
 	PREFIX
 	CALL
 )
+
+var precedence = map[token.TokenType]int{
+	token.EQUAL:     EQUALS,
+	token.NOT_EQUAL: EQUALS,
+	token.LR:        LOWERGREATER,
+	token.GR:        LOWERGREATER,
+	token.PLUS:      SUM,
+	token.MINUS:     SUM,
+	token.ASTERISX:  PRODUCT,
+	token.SLASH:     PRODUCT,
+}
 
 func New(lex *lexer.Lexer) *Parser {
 	parser := &Parser{
@@ -89,15 +100,41 @@ func (parser *Parser) addPrefixParsers() {
 }
 
 func (parser *Parser) addInfixParsers() {
-	parser.infixParsers = map[token.TokenType]infixParser{}
+	parser.infixParsers = map[token.TokenType]infixParser{
+		token.EQUAL:     parser.parseInfixExpression,
+		token.NOT_EQUAL: parser.parseInfixExpression,
+		token.LR:        parser.parseInfixExpression,
+		token.GR:        parser.parseInfixExpression,
+		token.PLUS:      parser.parseInfixExpression,
+		token.MINUS:     parser.parseInfixExpression,
+		token.ASTERISX:  parser.parseInfixExpression,
+		token.SLASH:     parser.parseInfixExpression,
+	}
 }
 
-func (parser *Parser) addPrefixParser(tokenType token.TokenType, fn prefixParser) {
-	parser.prefixParsers[tokenType] = fn
+func (parser *Parser) expectNextTokenType(tokenType token.TokenType) bool {
+	if parser.nextTok.Type != tokenType {
+		parser.addInvalidNextTokenTypeError(parser.nextTok, tokenType)
+		return false
+	}
+	parser.nextToken()
+	return true
 }
 
-func (parser *Parser) addInfixParser(tokenType token.TokenType, fn infixParser) {
-	parser.infixParsers[tokenType] = fn
+func (parser *Parser) getPrecedence() int {
+	prec, ok := precedence[parser.tok.Type]
+	if !ok {
+		return LOWEST
+	}
+	return prec
+}
+
+func (parser *Parser) getNextPrecedence() int {
+	prec, ok := precedence[parser.nextTok.Type]
+	if !ok {
+		return LOWEST
+	}
+	return prec
 }
 
 func (parser *Parser) parseStatement() ast.Statement {
@@ -109,15 +146,6 @@ func (parser *Parser) parseStatement() ast.Statement {
 	default:
 		return parser.parseExpressionStatement()
 	}
-}
-
-func (parser *Parser) expectNextTokenType(tokenType token.TokenType) bool {
-	if parser.nextTok.Type != tokenType {
-		parser.addInvalidNextTokenTypeError(parser.nextTok, tokenType)
-		return false
-	}
-	parser.nextToken()
-	return true
 }
 
 func (parser *Parser) parseLetStatement() *ast.LetStatement {
@@ -160,6 +188,7 @@ func (parser *Parser) parseReturnStatement() *ast.ReturnStatement {
 }
 
 func (parser *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	defer untrace(trace("parseExpressionStatement"))
 	expressionStatement := &ast.ExpressionStatement{
 		Token: parser.tok,
 	}
@@ -177,13 +206,28 @@ func (parser *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return expressionStatement
 }
 
-func (parser *Parser) parseExpression(precedence int) ast.Expression {
+func (parser *Parser) parseExpression(prec int) ast.Expression {
+	defer untrace(trace("parseExpression"))
 	prefix, ok := parser.prefixParsers[parser.tok.Type]
 	if !ok {
 		parser.addInvalidPrefixError(parser.tok.Type)
 		return nil
 	}
-	return prefix()
+
+	left := prefix()
+
+	for parser.nextTok.Type != token.SEMICOLON && prec < parser.getNextPrecedence() {
+		infix, ok := parser.infixParsers[parser.nextTok.Type]
+		if !ok {
+			return left
+		}
+
+		parser.nextToken()
+
+		left = infix(left)
+	}
+
+	return left
 }
 
 func (parser *Parser) parseIdentifier() ast.Expression {
@@ -194,9 +238,11 @@ func (parser *Parser) parseIdentifier() ast.Expression {
 }
 
 func (parser *Parser) parseIntegerLiteral() ast.Expression {
+	defer untrace(trace("parseIntegerLiteral"))
 	integer := &ast.IntegerLiteral{
 		Token: parser.tok,
 	}
+
 	value, err := strconv.ParseInt(string(parser.tok.Literal), 0, 64)
 	if err != nil {
 		err := fmt.Sprintf("[Error] Invalid token literal. Could not parse %s as int", parser.tok.Literal)
@@ -209,6 +255,7 @@ func (parser *Parser) parseIntegerLiteral() ast.Expression {
 }
 
 func (parser *Parser) parsePrefixExpression() ast.Expression {
+	defer untrace(trace("parsePrefixExpression"))
 	prefixExpression := &ast.PrefixExpression{
 		Token:    parser.tok,
 		Operator: string(parser.tok.Literal),
@@ -219,4 +266,19 @@ func (parser *Parser) parsePrefixExpression() ast.Expression {
 	prefixExpression.Right = parser.parseExpression(PREFIX)
 
 	return prefixExpression
+}
+
+func (parser *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	defer untrace(trace("parseInfixExpression"))
+	infixExpression := &ast.InfixExpression{
+		Token:    parser.tok,
+		Operator: string(parser.tok.Literal),
+		Left:     left,
+	}
+
+	prec := parser.getPrecedence()
+	parser.nextToken()
+	infixExpression.Right = parser.parseExpression(prec)
+
+	return infixExpression
 }
