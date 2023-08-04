@@ -19,11 +19,11 @@ func printTrace(msg string) {
 
 func trace(msg string) string {
 	nestLevel += 1
-	printTrace("BEGIN " + msg)
+	// printTrace("BEGIN " + msg)
 	return msg
 }
 
 func untrace(msg string) {
-	printTrace("END " + msg)
+	// printTrace("END " + msg)
 	nestLevel -= 1
 }

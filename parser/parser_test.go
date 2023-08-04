@@ -8,18 +8,6 @@ import (
 	"testing"
 )
 
-func testParserErrors(t *testing.T, parser *Parser) {
-	errorsAmount := len(parser.Errors)
-	if errorsAmount == 0 {
-		return
-	}
-	t.Errorf("[Test] Parser encountered %d error(s)", errorsAmount)
-	for _, err := range parser.Errors {
-		t.Error(err)
-	}
-	t.FailNow()
-}
-
 func TestLetStatements(t *testing.T) {
 	input := `
 	let x = 5;
@@ -47,34 +35,6 @@ func TestLetStatements(t *testing.T) {
 			return
 		}
 	}
-}
-
-func testLetStatement(t *testing.T, statement ast.Statement, name token.TokenLiteral) bool {
-	letStatement, ok := statement.(*ast.LetStatement)
-	if !ok {
-		t.Errorf("[Test] Invalid let statement: received %T, expected *ast.LetStatement", letStatement)
-		return false
-	}
-
-	letType, ok := token.GetKeywordFromType(token.LET)
-	if !ok {
-		t.Error("[Test] Invalid token type: received token.LET")
-		return false
-	}
-
-	if letStatement.TokenLiteral() != letType {
-		t.Errorf("[Test] Invalid statement token literal: received %v, expected %v", letStatement.TokenLiteral(), letType)
-		return false
-	}
-
-	if letStatement.Name.Value != name {
-		t.Errorf("[Test] Invalid  let statement name value: received %v, expected %v", letStatement.Name.Value, name)
-		return false
-	}
-
-	// TODO: test expression
-
-	return true
 }
 
 func TestReturnStatement(t *testing.T) {
@@ -133,19 +93,7 @@ func TestIdentifierExpression(t *testing.T) {
 		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.EpressionStatement", program.Statements[0])
 	}
 
-	identifier, ok := expressionStatement.Value.(*ast.Identifier)
-	if !ok {
-		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.Identifier", expressionStatement.Value)
-	}
-
-	expectedIdentifierValue := token.TokenLiteral("foo")
-	if identifier.Value != expectedIdentifierValue {
-		t.Errorf("[Test] Invalid identifier value: received %s, expected %s", identifier.Value, expectedIdentifierValue)
-	}
-
-	if identifier.TokenLiteral() != expectedIdentifierValue {
-		t.Fatalf("[Test] Invalid identifier token literal: received %s, expected %s", identifier.TokenLiteral(), expectedIdentifierValue)
-	}
+	testIdentifier(t, expressionStatement.Value, token.TokenLiteral("foo"))
 }
 
 func TestIntegerExpression(t *testing.T) {
@@ -232,27 +180,6 @@ func TestPrefixExpressions(t *testing.T) {
 	}
 }
 
-func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
-	integer, ok := expression.(*ast.IntegerLiteral)
-	if !ok {
-		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.IntegerLiteral", integer)
-		return false
-	}
-
-	if integer.Value != value {
-		t.Errorf("[Test] Invalid integer value: received %d, expected %d", integer.Value, value)
-		return false
-	}
-
-	expectedTokenLiteral := token.TokenLiteral(fmt.Sprintf("%d", value))
-	if integer.TokenLiteral() != expectedTokenLiteral {
-		t.Errorf("[Error] Invalid integer token literal: received %s, expected %s", integer.TokenLiteral(), expectedTokenLiteral)
-		return false
-	}
-
-	return true
-}
-
 func TestInfixExpressions(t *testing.T) {
 	type InfixTest struct {
 		input    string
@@ -327,22 +254,7 @@ func TestInfixExpressions(t *testing.T) {
 			t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.InfixExpression", program.Statements[0])
 		}
 
-		expression, ok := statement.Value.(*ast.InfixExpression)
-		if !ok {
-			t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.InfixExpression", statement)
-		}
-
-		if expression.Operator != test.operator {
-			t.Fatalf("[Test] Invalid expression operator: received %s, expected %s", expression.Operator, test.operator)
-		}
-
-		if !testIntegerLiteral(t, expression.Left, test.left) {
-			return
-		}
-
-		if !testIntegerLiteral(t, expression.Right, test.right) {
-			return
-		}
+		testInfixExpression(t, statement.Value, test.operator, test.left, test.right)
 	}
 }
 
@@ -412,4 +324,122 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			t.Errorf("[Test] Invalid program string: received %s, expected %s", received, test.expected)
 		}
 	}
+}
+
+func testParserErrors(t *testing.T, parser *Parser) {
+	errorsAmount := len(parser.Errors)
+	if errorsAmount == 0 {
+		return
+	}
+	t.Errorf("[Test] Parser encountered %d error(s)", errorsAmount)
+	for _, err := range parser.Errors {
+		t.Error(err)
+	}
+	t.FailNow()
+}
+
+func testLetStatement(t *testing.T, statement ast.Statement, name token.TokenLiteral) bool {
+	letStatement, ok := statement.(*ast.LetStatement)
+	if !ok {
+		t.Errorf("[Test] Invalid let statement: received %T, expected *ast.LetStatement", letStatement)
+		return false
+	}
+
+	letType, ok := token.GetKeywordFromType(token.LET)
+	if !ok {
+		t.Error("[Test] Invalid token type: received token.LET")
+		return false
+	}
+
+	if letStatement.TokenLiteral() != letType {
+		t.Errorf("[Test] Invalid statement token literal: received %v, expected %v", letStatement.TokenLiteral(), letType)
+		return false
+	}
+
+	if letStatement.Name.Value != name {
+		t.Errorf("[Test] Invalid  let statement name value: received %v, expected %v", letStatement.Name.Value, name)
+		return false
+	}
+
+	// TODO: test expression
+
+	return true
+}
+
+func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
+	integer, ok := expression.(*ast.IntegerLiteral)
+	if !ok {
+		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.IntegerLiteral", integer)
+		return false
+	}
+
+	if integer.Value != value {
+		t.Errorf("[Test] Invalid integer value: received %d, expected %d", integer.Value, value)
+		return false
+	}
+
+	expectedTokenLiteral := token.TokenLiteral(fmt.Sprintf("%d", value))
+	if integer.TokenLiteral() != expectedTokenLiteral {
+		t.Errorf("[Error] Invalid integer token literal: received %s, expected %s", integer.TokenLiteral(), expectedTokenLiteral)
+		return false
+	}
+
+	return true
+}
+
+func testIdentifier(t *testing.T, exp ast.Expression, value token.TokenLiteral) bool {
+	ident, ok := exp.(*ast.Identifier)
+	if !ok {
+		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.Identifier", exp)
+		return false
+	}
+
+	if ident.Value != value {
+		t.Errorf("[Test] Invalid identifier value: received %s, expected %s", ident.Value, value)
+		return false
+	}
+
+	if ident.TokenLiteral() != value {
+		t.Errorf("[Test] Invalid identifier token literal: received %s, expected %s", ident.TokenLiteral(), value)
+		return false
+	}
+
+	return true
+}
+
+func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
+	switch v := expected.(type) {
+	case int:
+		return testIntegerLiteral(t, exp, int64(v))
+	case int64:
+		return testIntegerLiteral(t, exp, v)
+	case token.TokenLiteral:
+		return testIdentifier(t, exp, v)
+	default:
+		t.Errorf("[Test] Invalid expected expression type: received %T", expected)
+		return false
+	}
+}
+
+func testInfixExpression(t *testing.T, exp ast.Expression, operator string, left interface{}, right interface{}) bool {
+	infixExpression, ok := exp.(*ast.InfixExpression)
+	if !ok {
+		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.InfixExpression", exp)
+		return false
+	}
+
+	if infixExpression.Operator != operator {
+		t.Errorf("[Test] invalid infix operator: received %s, expected %s", infixExpression.Operator, operator)
+		return false
+	}
+
+	if !testLiteralExpression(t, infixExpression.Left, left) {
+		return false
+	}
+
+	if !testLiteralExpression(t, infixExpression.Right, right) {
+		return false
+	}
+
+	return true
 }
