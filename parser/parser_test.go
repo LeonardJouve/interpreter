@@ -75,7 +75,7 @@ func TestReturnStatement(t *testing.T) {
 	}
 }
 
-func TestIdentifierExpression(t *testing.T) {
+func TestIdentifierExpressions(t *testing.T) {
 	input := "foo;"
 
 	lex := lexer.New(input)
@@ -93,10 +93,12 @@ func TestIdentifierExpression(t *testing.T) {
 		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.EpressionStatement", program.Statements[0])
 	}
 
-	testIdentifier(t, expressionStatement.Value, token.TokenLiteral("foo"))
+	if !testIdentifier(t, expressionStatement.Value, token.TokenLiteral("foo")) {
+		return
+	}
 }
 
-func TestIntegerExpression(t *testing.T) {
+func TestIntegerExpressions(t *testing.T) {
 	input := "5;"
 
 	lex := lexer.New(input)
@@ -134,7 +136,7 @@ func TestPrefixExpressions(t *testing.T) {
 	type PrefixTest struct {
 		input    string
 		operator string
-		value    int64
+		value    interface{}
 	}
 	tests := []PrefixTest{
 		{
@@ -146,6 +148,16 @@ func TestPrefixExpressions(t *testing.T) {
 			input:    "-15;",
 			operator: "-",
 			value:    15,
+		},
+		{
+			input:    "!true",
+			operator: "!",
+			value:    true,
+		},
+		{
+			input:    "!false",
+			operator: "!",
+			value:    false,
 		},
 	}
 
@@ -184,8 +196,8 @@ func TestInfixExpressions(t *testing.T) {
 	type InfixTest struct {
 		input    string
 		operator string
-		left     int64
-		right    int64
+		left     interface{}
+		right    interface{}
 	}
 	tests := []InfixTest{
 		{
@@ -236,6 +248,18 @@ func TestInfixExpressions(t *testing.T) {
 			left:     5,
 			right:    15,
 		},
+		{
+			input:    "true == true",
+			operator: "==",
+			left:     true,
+			right:    true,
+		},
+		{
+			input:    "false != false",
+			operator: "!=",
+			left:     "false",
+			right:    "false",
+		},
 	}
 
 	for _, test := range tests {
@@ -254,7 +278,9 @@ func TestInfixExpressions(t *testing.T) {
 			t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.InfixExpression", program.Statements[0])
 		}
 
-		testInfixExpression(t, statement.Value, test.operator, test.left, test.right)
+		if !testInfixExpression(t, statement.Value, test.operator, test.left, test.right) {
+			return
+		}
 	}
 }
 
@@ -312,6 +338,22 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			input:    "3 + 4 * 5 == 3 * 1 + 4 * 5",
 			expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
 		},
+		{
+			input:    "true",
+			expected: "true",
+		},
+		{
+			input:    "false",
+			expected: "false",
+		},
+		{
+			input:    "3 > 5 == false",
+			expected: "((3 > 5) == false)",
+		},
+		{
+			input:    "3 < 5 == true",
+			expected: "((3 < 5) == true)",
+		},
 	}
 
 	for _, test := range tests {
@@ -323,6 +365,29 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		if received := program.String(); received != test.expected {
 			t.Errorf("[Test] Invalid program string: received %s, expected %s", received, test.expected)
 		}
+	}
+}
+
+func TestBooleanExpression(t *testing.T) {
+	input := "true;"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.EpressionStatement", program.Statements[0])
+	}
+
+	if !testBooleanLiteral(t, expressionStatement.Value, true) {
+		return
 	}
 }
 
@@ -415,6 +480,8 @@ func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{
 		return testIntegerLiteral(t, exp, v)
 	case token.TokenLiteral:
 		return testIdentifier(t, exp, v)
+	case bool:
+		return testBooleanLiteral(t, exp, v)
 	default:
 		t.Errorf("[Test] Invalid expected expression type: received %T", expected)
 		return false
@@ -438,6 +505,27 @@ func testInfixExpression(t *testing.T, exp ast.Expression, operator string, left
 	}
 
 	if !testLiteralExpression(t, infixExpression.Right, right) {
+		return false
+	}
+
+	return true
+}
+
+func testBooleanLiteral(t *testing.T, exp ast.Expression, value bool) bool {
+	boolean, ok := exp.(*ast.Boolean)
+	if !ok {
+		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.Boolean", exp)
+		return false
+	}
+
+	if boolean.Value != value {
+		t.Errorf("[Test] Invalid identifier value: received %t, expected %t", boolean.Value, value)
+		return false
+	}
+
+	expectedTokenLiteral := token.TokenLiteral(fmt.Sprintf("%t", value))
+	if boolean.TokenLiteral() != expectedTokenLiteral {
+		t.Errorf("[Test] Invalid identifier token literal: received %s, expected %s", boolean.TokenLiteral(), expectedTokenLiteral)
 		return false
 	}
 

@@ -96,6 +96,8 @@ func (parser *Parser) addPrefixParsers() {
 		token.INT:        parser.parseIntegerLiteral,
 		token.MINUS:      parser.parsePrefixExpression,
 		token.BANG:       parser.parsePrefixExpression,
+		token.TRUE:       parser.parseBoolean,
+		token.FALSE:      parser.parseBoolean,
 	}
 }
 
@@ -281,4 +283,11 @@ func (parser *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	infixExpression.Right = parser.parseExpression(prec)
 
 	return infixExpression
+}
+
+func (parser *Parser) parseBoolean() ast.Expression {
+	return &ast.Boolean{
+		Token: parser.tok,
+		Value: parser.tok.Type == token.TRUE,
+	}
 }
