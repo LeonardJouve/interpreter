@@ -68,6 +68,18 @@ type Boolean struct {
 	Value bool
 }
 
+type BlockStatement struct {
+	Token      token.Token
+	Statements []Statement
+}
+
+type IfExpression struct {
+	Token       token.Token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
 func (program *Program) TokenLiteral() token.TokenLiteral {
 	return token.TokenLiteral("")
 }
@@ -170,6 +182,36 @@ func (expression *InfixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(" + expression.Left.String() + " " + expression.Operator + " " + expression.Right.String() + ")")
+
+	return out.String()
+}
+
+func (statement *BlockStatement) statementNode() {}
+func (statement *BlockStatement) TokenLiteral() token.TokenLiteral {
+	return statement.Token.Literal
+}
+func (statement *BlockStatement) String() string {
+	var out bytes.Buffer
+
+	for _, statement := range statement.Statements {
+		out.WriteString(statement.String())
+	}
+
+	return out.String()
+}
+
+func (expression *IfExpression) expressionNode() {}
+func (expression *IfExpression) TokenLiteral() token.TokenLiteral {
+	return expression.Token.Literal
+}
+func (expression *IfExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if " + expression.Condition.String() + " " + expression.Consequence.String())
+
+	if expression.Alternative != nil {
+		out.WriteString(" else " + expression.Alternative.String())
+	}
 
 	return out.String()
 }

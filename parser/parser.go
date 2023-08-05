@@ -99,6 +99,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.TRUE:       parser.parseBoolean,
 		token.FALSE:      parser.parseBoolean,
 		token.LPAREN:     parser.parseGroupedExpression,
+		token.IF:         parser.parseIfExpression,
 	}
 }
 
@@ -303,4 +304,57 @@ func (parser *Parser) parseGroupedExpression() ast.Expression {
 	}
 
 	return expression
+}
+
+func (parser *Parser) parseIfExpression() ast.Expression {
+	ifExpression := &ast.IfExpression{
+		Token: parser.tok,
+	}
+
+	if !parser.expectNextTokenType(token.LPAREN) {
+		return nil
+	}
+
+	parser.nextToken()
+
+	ifExpression.Condition = parser.parseExpression(LOWEST)
+
+	if !parser.expectNextTokenType(token.RPAREN) {
+		return nil
+	}
+
+	if !parser.expectNextTokenType(token.LBRACE) {
+		return nil
+	}
+
+	ifExpression.Consequence = parser.parseBlockStatement()
+
+	if parser.nextTok.Type == token.ELSE {
+		parser.nextToken()
+		if !parser.expectNextTokenType(token.LBRACE) {
+			return nil
+		}
+		ifExpression.Alternative = parser.parseBlockStatement()
+	}
+
+	return ifExpression
+}
+
+func (parser *Parser) parseBlockStatement() *ast.BlockStatement {
+	blockStatement := &ast.BlockStatement{
+		Token:      parser.tok,
+		Statements: []ast.Statement{},
+	}
+
+	parser.nextToken()
+
+	for parser.tok.Type != token.RBRACE && parser.tok.Type != token.EOF {
+		statement := parser.parseStatement()
+		if statement != nil {
+			blockStatement.Statements = append(blockStatement.Statements, statement)
+		}
+		parser.nextToken()
+	}
+
+	return blockStatement
 }

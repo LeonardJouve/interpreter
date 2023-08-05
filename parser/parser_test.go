@@ -411,6 +411,46 @@ func TestBooleanExpression(t *testing.T) {
 	}
 }
 
+func TestIfExpressions(t *testing.T) {
+	type IfExpressionTest struct {
+		input             string
+		conditionOperator string
+		conditionLeft     token.TokenLiteral
+		conditionRight    token.TokenLiteral
+		consequence       token.TokenLiteral
+		alternative       token.TokenLiteral
+	}
+	tests := []IfExpressionTest{
+		{
+			input:             "if (x < y) { x }",
+			conditionOperator: "<",
+			conditionLeft:     "x",
+			conditionRight:    "y",
+			consequence:       "x",
+			alternative:       "",
+		},
+		{
+			input:             "if (y > x) { y } else { x }",
+			conditionOperator: ">",
+			conditionLeft:     "y",
+			conditionRight:    "x",
+			consequence:       "y",
+			alternative:       "x",
+		},
+	}
+
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		if !testIfExpression(t, program, test.conditionOperator, test.conditionLeft, test.conditionRight, test.consequence, test.alternative) {
+			continue
+		}
+	}
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {
@@ -549,5 +589,69 @@ func testBooleanLiteral(t *testing.T, exp ast.Expression, value bool) bool {
 		return false
 	}
 
+	return true
+}
+
+func testIfExpression(t *testing.T, program *ast.Program, expectedConditionOperator string, expectedConditionLeft token.TokenLiteral, expecetedConditionRight token.TokenLiteral, expectedConsequence token.TokenLiteral, expectedAlternative token.TokenLiteral) bool {
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Errorf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		return false
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Errorf("[Test] Invalid statement type: received %T, expected *ast.Expression", program.Statements[0])
+		return false
+	}
+
+	ifExpression, ok := expressionStatement.Value.(*ast.IfExpression)
+	if !ok {
+		t.Errorf("[Test] Invalid expression type: received %T, expected *ast.IfExpression", expressionStatement)
+		return false
+	}
+
+	if !testInfixExpression(t, ifExpression.Condition, expectedConditionOperator, expectedConditionLeft, expecetedConditionRight) {
+		return false
+	}
+
+	expectedConsequenceStatementAmount := 1
+	if consequenceStatementAmount := len(ifExpression.Consequence.Statements); consequenceStatementAmount != expectedConsequenceStatementAmount {
+		t.Errorf("[Test] Invalid consequence statement amount: received %d, expected %d", consequenceStatementAmount, expectedConsequenceStatementAmount)
+		return false
+	}
+
+	consequence, ok := ifExpression.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Errorf("[Test] Invalid consequence statement type: received %T, expected *ast.Expression", ifExpression.Consequence.Statements[0])
+		return false
+	}
+
+	if !testIdentifier(t, consequence.Value, expectedConsequence) {
+		return false
+	}
+
+	if len(expectedAlternative) > 0 {
+		expectedAlternativeStatementAmount := 1
+		if alternativeStatementAmount := len(ifExpression.Alternative.Statements); alternativeStatementAmount != expectedAlternativeStatementAmount {
+			t.Errorf("[Test] Invalid alternative statement amount: received %d, expected %d", alternativeStatementAmount, expectedAlternativeStatementAmount)
+			return false
+		}
+
+		alternative, ok := ifExpression.Alternative.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Errorf("[Test] Invalid alternative statement type: received %T, expected *ast.ExpressionStatement", ifExpression.Alternative.Statements[0])
+			return false
+		}
+
+		if !testIdentifier(t, alternative.Value, expectedAlternative) {
+			return false
+		}
+	} else {
+		if ifExpression.Alternative != nil {
+			t.Errorf("[Test] Invalid alternative value: received %s, expected nil", ifExpression.Alternative.String())
+			return false
+		}
+	}
 	return true
 }
