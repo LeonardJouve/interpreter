@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"leonardjouve/token"
+	"strings"
 )
 
 type Node interface {
@@ -80,6 +81,12 @@ type IfExpression struct {
 	Alternative *BlockStatement
 }
 
+type FunctionLiteral struct {
+	Token      token.Token
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
 func (program *Program) TokenLiteral() token.TokenLiteral {
 	return token.TokenLiteral("")
 }
@@ -117,7 +124,12 @@ func (statement *LetStatement) TokenLiteral() token.TokenLiteral {
 func (statement *LetStatement) String() string {
 	var out bytes.Buffer
 
-	out.WriteString(string(statement.TokenLiteral()) + " " + statement.Name.String() + " = ")
+	letKeyword, ok := token.GetKeywordFromType(token.LET)
+	if ok {
+		out.WriteString(string(letKeyword) + " ")
+	}
+
+	out.WriteString(statement.Name.String() + " = ")
 
 	if statement.Value != nil {
 		out.WriteString(statement.Value.String())
@@ -135,7 +147,10 @@ func (statement *ReturnStatement) TokenLiteral() token.TokenLiteral {
 func (statement *ReturnStatement) String() string {
 	var out bytes.Buffer
 
-	out.WriteString(string(statement.TokenLiteral()) + " ")
+	returnKeyword, ok := token.GetKeywordFromType(token.RETURN)
+	if ok {
+		out.WriteString(string(returnKeyword) + " ")
+	}
 
 	if statement.Value != nil {
 		out.WriteString(statement.Value.String())
@@ -207,11 +222,43 @@ func (expression *IfExpression) TokenLiteral() token.TokenLiteral {
 func (expression *IfExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("if " + expression.Condition.String() + " " + expression.Consequence.String())
+	ifKeyword, ok := token.GetKeywordFromType(token.IF)
+	if ok {
+		out.WriteString(string(ifKeyword) + " ")
+	}
+
+	out.WriteString(expression.Condition.String() + " " + expression.Consequence.String())
 
 	if expression.Alternative != nil {
-		out.WriteString(" else " + expression.Alternative.String())
+		elseKeyword, ok := token.GetKeywordFromType(token.ELSE)
+		if ok {
+			out.WriteString(" " + string(elseKeyword) + " ")
+		}
+
+		out.WriteString(expression.Alternative.String())
 	}
+
+	return out.String()
+}
+
+func (expression *FunctionLiteral) expressionNode() {}
+func (expression *FunctionLiteral) TokenLiteral() token.TokenLiteral {
+	return expression.Token.Literal
+}
+func (expression *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, param := range expression.Parameters {
+		params = append(params, param.String())
+	}
+
+	functionKeyword, ok := token.GetKeywordFromType(token.FUNCTION)
+	if ok {
+		out.WriteString(string(functionKeyword) + " ")
+	}
+
+	out.WriteString("(" + strings.Join(params, ", ") + ") " + expression.Body.String())
 
 	return out.String()
 }

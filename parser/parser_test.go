@@ -451,6 +451,107 @@ func TestIfExpressions(t *testing.T) {
 	}
 }
 
+func TestFunctionLiteralParsing(t *testing.T) {
+	input := "fn (x, y) { x + y; }"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	functionLiteral, ok := expressionStatement.Value.(*ast.FunctionLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.FunctionLiteral", expressionStatement.Value)
+	}
+
+	expectedParamsAmount := 2
+	if paramsAmount := len(functionLiteral.Parameters); paramsAmount != expectedParamsAmount {
+		t.Fatalf("[Test] Invalid function params amount: received %d, expected %d", paramsAmount, expectedParamsAmount)
+	}
+
+	testLiteralExpression(t, functionLiteral.Parameters[0], token.TokenLiteral("x"))
+	testLiteralExpression(t, functionLiteral.Parameters[1], token.TokenLiteral("y"))
+
+	expectedBodyStatementAmount := 1
+	if bodyStatementAmount := len(functionLiteral.Body.Statements); bodyStatementAmount != expectedBodyStatementAmount {
+		t.Fatalf("[Test] Invalid body statement amount: received %d, expected %d", bodyStatementAmount, expectedBodyStatementAmount)
+	}
+
+	bodyStatement, ok := functionLiteral.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid body statement type: received %T, expected *ast.ExpressionStatement", functionLiteral.Body.Statements[0])
+	}
+
+	testInfixExpression(t, bodyStatement.Value, "+", token.TokenLiteral("x"), token.TokenLiteral("y"))
+}
+
+func TestFunctionParametersParsing(t *testing.T) {
+	type FunctionParameterParsingTest struct {
+		input    string
+		expected []token.TokenLiteral
+	}
+	tests := []FunctionParameterParsingTest{
+		{
+			input:    "fn () {}",
+			expected: []token.TokenLiteral{},
+		},
+		{
+			input: "fn (x) {}",
+			expected: []token.TokenLiteral{
+				"x",
+			},
+		},
+		{
+			input: "fn (x, y) {}",
+			expected: []token.TokenLiteral{
+				"x",
+				"y",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		expectedStatementAmount := 1
+		if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+			t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		}
+
+		expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+		}
+
+		functionLiteral, ok := expressionStatement.Value.(*ast.FunctionLiteral)
+		if !ok {
+			t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.FunctionLiteral", expressionStatement.Value)
+		}
+
+		expectedParamsAmount := len(test.expected)
+		if paramsAmount := len(functionLiteral.Parameters); paramsAmount != expectedParamsAmount {
+			t.Fatalf(" [Test] Invalid params amount: received %d, expected %d", paramsAmount, expectedParamsAmount)
+		}
+
+		for i, expectedParam := range test.expected {
+			testLiteralExpression(t, functionLiteral.Parameters[i], expectedParam)
+		}
+	}
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {
@@ -505,7 +606,7 @@ func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bo
 
 	expectedTokenLiteral := token.TokenLiteral(fmt.Sprintf("%d", value))
 	if integer.TokenLiteral() != expectedTokenLiteral {
-		t.Errorf("[Error] Invalid integer token literal: received %s, expected %s", integer.TokenLiteral(), expectedTokenLiteral)
+		t.Errorf("[Test] Invalid integer token literal: received %s, expected %s", integer.TokenLiteral(), expectedTokenLiteral)
 		return false
 	}
 

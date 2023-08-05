@@ -100,6 +100,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.FALSE:      parser.parseBoolean,
 		token.LPAREN:     parser.parseGroupedExpression,
 		token.IF:         parser.parseIfExpression,
+		token.FUNCTION:   parser.parseFunctionLiteral,
 	}
 }
 
@@ -357,4 +358,58 @@ func (parser *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 
 	return blockStatement
+}
+
+func (parser *Parser) parseFunctionLiteral() ast.Expression {
+	functionLiteral := &ast.FunctionLiteral{
+		Token: parser.tok,
+	}
+
+	if !parser.expectNextTokenType(token.LPAREN) {
+		return nil
+	}
+
+	functionLiteral.Parameters = parser.parseFunctionParameters()
+	if functionLiteral.Parameters == nil {
+		return nil
+	}
+
+	if !parser.expectNextTokenType(token.LBRACE) {
+		return nil
+	}
+
+	functionLiteral.Body = parser.parseBlockStatement()
+
+	return functionLiteral
+}
+
+func (parser *Parser) parseFunctionParameters() []*ast.Identifier {
+	identifiers := []*ast.Identifier{}
+	parser.nextToken()
+
+	if parser.tok.Type == token.RPAREN {
+		return identifiers
+	}
+
+	identifier := &ast.Identifier{
+		Token: parser.tok,
+		Value: parser.tok.Literal,
+	}
+	identifiers = append(identifiers, identifier)
+
+	for parser.nextTok.Type == token.COMMA {
+		parser.nextToken()
+		parser.nextToken()
+		identifier := &ast.Identifier{
+			Token: parser.tok,
+			Value: parser.tok.Literal,
+		}
+		identifiers = append(identifiers, identifier)
+	}
+
+	if !parser.expectNextTokenType(token.RPAREN) {
+		return nil
+	}
+
+	return identifiers
 }
