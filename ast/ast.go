@@ -87,6 +87,12 @@ type FunctionLiteral struct {
 	Body       *BlockStatement
 }
 
+type CallExpression struct {
+	Token     token.Token
+	Function  Expression
+	Arguments []Expression
+}
+
 func (program *Program) TokenLiteral() token.TokenLiteral {
 	return token.TokenLiteral("")
 }
@@ -259,6 +265,23 @@ func (expression *FunctionLiteral) String() string {
 	}
 
 	out.WriteString("(" + strings.Join(params, ", ") + ") " + expression.Body.String())
+
+	return out.String()
+}
+
+func (expression *CallExpression) expressionNode() {}
+func (expression *CallExpression) TokenLiteral() token.TokenLiteral {
+	return expression.Token.Literal
+}
+func (expression *CallExpression) String() string {
+	var out bytes.Buffer
+
+	args := []string{}
+	for _, argument := range expression.Arguments {
+		args = append(args, argument.String())
+	}
+
+	out.WriteString(expression.Function.String() + " (" + strings.Join(args, ", ") + ")")
 
 	return out.String()
 }

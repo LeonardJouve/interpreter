@@ -9,53 +9,82 @@ import (
 )
 
 func TestLetStatements(t *testing.T) {
-	input := `
-	let x = 5;
-	let y = 10;
-	let foo = 12121212;
-	`
-	tests := []token.TokenLiteral{
-		"x",
-		"y",
-		"foo",
+	type LetStatementTest struct {
+		input              string
+		expectedIdentifier token.TokenLiteral
+		expectedValue      interface{}
+	}
+	tests := []LetStatementTest{
+		{
+			input:              "let x = 5;",
+			expectedIdentifier: "x",
+			expectedValue:      5,
+		},
+		{
+			input:              "let y = 10;",
+			expectedIdentifier: "y",
+			expectedValue:      10,
+		},
+		{
+			input:              "let foo = x;",
+			expectedIdentifier: "foo",
+			expectedValue:      "x",
+		},
 	}
 
-	lex := lexer.New(input)
-	parser := New(lex)
-	program := parser.ParseProgram()
-	testParserErrors(t, parser)
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
 
-	expectedStatementAmount := 3
-	if len(program.Statements) != expectedStatementAmount {
-		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", len(program.Statements), expectedStatementAmount)
-	}
+		expectedStatementAmount := 1
+		if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+			t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		}
 
-	for i, test := range tests {
-		if !testLetStatement(t, program.Statements[i], test) {
+		if !testLetStatement(t, program.Statements[0], test.expectedIdentifier, test.expectedValue) {
 			return
 		}
 	}
 }
 
 func TestReturnStatement(t *testing.T) {
-	input := `
-	return 5;
-	return 10;
-	return 12121212;
-	`
-
-	lex := lexer.New(input)
-	parser := New(lex)
-	program := parser.ParseProgram()
-	testParserErrors(t, parser)
-
-	expectedStatementAmount := 3
-	if len(program.Statements) != expectedStatementAmount {
-		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", len(program.Statements), expectedStatementAmount)
+	type ReturnStatementTest struct {
+		input    string
+		expected string
+	}
+	tests := []ReturnStatementTest{
+		{
+			input:    "return 5;",
+			expected: "5",
+		},
+		{
+			input:    "return 10;",
+			expected: "10",
+		},
+		{
+			input:    "return x;",
+			expected: "x",
+		},
+		{
+			input:    "return x + y;",
+			expected: "x + y",
+		},
 	}
 
-	for _, statement := range program.Statements {
-		returnStatement, ok := statement.(*ast.ReturnStatement)
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		expectedStatementAmount := 1
+		if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+			t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		}
+
+		returnStatement, ok := program.Statements[0].(*ast.ReturnStatement)
 		if !ok {
 			t.Errorf("[Test] Invalid return statement: received %T, expected *ast.ReturnStatement", returnStatement)
 			continue
@@ -71,8 +100,11 @@ func TestReturnStatement(t *testing.T) {
 			t.Errorf("[Test] Invalid statement token literal: received %v, expected %v", returnStatement.TokenLiteral(), returnType)
 		}
 
-		// TODO: test expression
+		if returnStatement.Value.String() != test.expected {
+			t.Errorf("[Test] Invalid retrun expression: received %s, expected %s", returnStatement.Value.String(), test.expected)
+		}
 	}
+
 }
 
 func TestIdentifierExpressions(t *testing.T) {
@@ -374,6 +406,18 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			input:    "!(true == true)",
 			expected: "(!(true == true))",
 		},
+		{
+			input:    "a + add(b * c) + d",
+			expected: "((a + add((b * c))) + d)",
+		},
+		{
+			input:    "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+			expected: "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+		},
+		{
+			input:    "add(a + b + c * d / f + g)",
+			expected: "add((((a + b) + ((c * d) / f)) + g))",
+		},
 	}
 
 	for _, test := range tests {
@@ -552,6 +596,111 @@ func TestFunctionParametersParsing(t *testing.T) {
 	}
 }
 
+func TestCallExpressionParsing(t *testing.T) {
+	input := "add(1, 2 + 3, 4 * 5);"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	callExpression, ok := expressionStatement.Value.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.CallExpression", expressionStatement.Value)
+	}
+
+	if !testIdentifier(t, callExpression.Function, token.TokenLiteral("add")) {
+		return
+	}
+
+	expectedArgumentAmount := 3
+	if argumentAmount := len(callExpression.Arguments); argumentAmount != expectedArgumentAmount {
+		t.Fatalf("[Test] Invalid argument amount: received %d, expected %d", argumentAmount, expectedArgumentAmount)
+	}
+
+	testLiteralExpression(t, callExpression.Arguments[0], 1)
+	testInfixExpression(t, callExpression.Arguments[1], "+", token.TokenLiteral("2"), token.TokenLiteral("3"))
+	testInfixExpression(t, callExpression.Arguments[2], "*", token.TokenLiteral("4"), token.TokenLiteral("5"))
+}
+
+func TestCallExpressionArgumentsParsing(t *testing.T) {
+	type CallExpressionArgumentsParsingTest struct {
+		input              string
+		expectedIdentifier token.TokenLiteral
+		expectedArgs       []string
+	}
+	tests := []CallExpressionArgumentsParsingTest{
+		{
+			input:              "add()",
+			expectedIdentifier: "add",
+			expectedArgs:       []string{},
+		},
+		{
+			input:              "substract(1)",
+			expectedIdentifier: "substract",
+			expectedArgs: []string{
+				"1",
+			},
+		},
+		{
+			input:              "multiply(1, 2 + 3, 4 * 5)",
+			expectedIdentifier: "multiply",
+			expectedArgs: []string{
+				"1",
+				"(2 + 3)",
+				"(4 * 5)",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		lex := lexer.New(test.input)
+		parser := New(lex)
+		program := parser.ParseProgram()
+		testParserErrors(t, parser)
+
+		expectedStatementAmount := 1
+		if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+			t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+		}
+
+		expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+		}
+
+		callExpression, ok := expressionStatement.Value.(*ast.CallExpression)
+		if !ok {
+			t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.CallExpression", expressionStatement.Value)
+		}
+
+		if !testIdentifier(t, callExpression.Function, test.expectedIdentifier) {
+			return
+		}
+
+		expectedArgsAmount := len(test.expectedArgs)
+		if paramsAmount := len(callExpression.Arguments); paramsAmount != expectedArgsAmount {
+			t.Fatalf("[Test] Invalid params amount: received %d, expected %d", paramsAmount, expectedArgsAmount)
+		}
+
+		for i, expectedArg := range test.expectedArgs {
+			if arg := callExpression.Arguments[i].String(); arg != expectedArg {
+				t.Errorf("[Test] Invalid call argument: received %s, expected %s", arg, expectedArg)
+			}
+		}
+	}
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {
@@ -564,7 +713,7 @@ func testParserErrors(t *testing.T, parser *Parser) {
 	t.FailNow()
 }
 
-func testLetStatement(t *testing.T, statement ast.Statement, name token.TokenLiteral) bool {
+func testLetStatement(t *testing.T, statement ast.Statement, identifier token.TokenLiteral, value interface{}) bool {
 	letStatement, ok := statement.(*ast.LetStatement)
 	if !ok {
 		t.Errorf("[Test] Invalid let statement: received %T, expected *ast.LetStatement", letStatement)
@@ -582,12 +731,14 @@ func testLetStatement(t *testing.T, statement ast.Statement, name token.TokenLit
 		return false
 	}
 
-	if letStatement.Name.Value != name {
-		t.Errorf("[Test] Invalid  let statement name value: received %v, expected %v", letStatement.Name.Value, name)
+	if letStatement.Name.Value != identifier {
+		t.Errorf("[Test] Invalid let statement name value: received %v, expected %v", letStatement.Name.Value, identifier)
 		return false
 	}
 
-	// TODO: test expression
+	if !testLiteralExpression(t, letStatement.Value, value) {
+		return false
+	}
 
 	return true
 }

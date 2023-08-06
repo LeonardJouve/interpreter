@@ -42,6 +42,7 @@ var precedence = map[token.TokenType]int{
 	token.MINUS:     SUM,
 	token.ASTERISX:  PRODUCT,
 	token.SLASH:     PRODUCT,
+	token.LPAREN:    CALL,
 }
 
 func New(lex *lexer.Lexer) *Parser {
@@ -114,6 +115,7 @@ func (parser *Parser) addInfixParsers() {
 		token.MINUS:     parser.parseInfixExpression,
 		token.ASTERISX:  parser.parseInfixExpression,
 		token.SLASH:     parser.parseInfixExpression,
+		token.LPAREN:    parser.parseCallExpression,
 	}
 }
 
@@ -171,8 +173,10 @@ func (parser *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	// TODO: parse expression
-	for parser.tok.Type != token.SEMICOLON {
+	parser.nextToken()
+	letStatement.Value = parser.parseExpression(LOWEST)
+
+	if parser.nextTok.Type == token.SEMICOLON {
 		parser.nextToken()
 	}
 
@@ -184,8 +188,10 @@ func (parser *Parser) parseReturnStatement() *ast.ReturnStatement {
 		Token: parser.tok,
 	}
 
-	// TODO: parse expression
-	for parser.tok.Type != token.SEMICOLON {
+	parser.nextToken()
+	returnStatement.Value = parser.parseExpression(LOWEST)
+
+	if parser.nextTok.Type == token.SEMICOLON {
 		parser.nextToken()
 	}
 
@@ -286,6 +292,20 @@ func (parser *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	infixExpression.Right = parser.parseExpression(prec)
 
 	return infixExpression
+}
+
+func (parser *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	callExpression := &ast.CallExpression{
+		Token:    parser.tok,
+		Function: function,
+	}
+
+	callExpression.Arguments = parser.parseCallArguments()
+	if callExpression.Arguments == nil {
+		return nil
+	}
+
+	return callExpression
 }
 
 func (parser *Parser) parseBoolean() ast.Expression {
@@ -412,4 +432,28 @@ func (parser *Parser) parseFunctionParameters() []*ast.Identifier {
 	}
 
 	return identifiers
+}
+
+func (parser *Parser) parseCallArguments() []ast.Expression {
+	args := []ast.Expression{}
+
+	if parser.nextTok.Type == token.RPAREN {
+		parser.nextToken()
+		return args
+	}
+
+	parser.nextToken()
+	args = append(args, parser.parseExpression(LOWEST))
+
+	for parser.nextTok.Type == token.COMMA {
+		parser.nextToken()
+		parser.nextToken()
+		args = append(args, parser.parseExpression(LOWEST))
+	}
+
+	if !parser.expectNextTokenType(token.RPAREN) {
+		return nil
+	}
+
+	return args
 }
