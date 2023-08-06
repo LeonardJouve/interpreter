@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"leonardjouve/evaluator"
 	"leonardjouve/lexer"
 	"leonardjouve/parser"
 )
@@ -31,7 +32,11 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		io.WriteString(out, "\t"+program.String()+"\n")
+		eval := evaluator.Eval(program)
+		if eval == nil {
+			continue
+		}
+		io.WriteString(out, "\t"+eval.Inspect()+"\n")
 	}
 }
 
