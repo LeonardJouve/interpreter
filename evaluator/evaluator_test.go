@@ -221,6 +221,54 @@ func TestEvalBangOperator(t *testing.T) {
 	}
 }
 
+func TestIfElseExpressions(t *testing.T) {
+	type IfElseExpressionsTest struct {
+		input    string
+		expected interface{}
+	}
+	tests := []IfElseExpressionsTest{
+		{
+			input:    "if (true) {10}",
+			expected: 10,
+		},
+		{
+			input:    "if (false) {10}",
+			expected: nil,
+		},
+		{
+			input:    "if (1) {10}",
+			expected: 10,
+		},
+		{
+			input:    "if (1 < 2) {10}",
+			expected: 10,
+		},
+		{
+			input:    "if (1 > 2) {10}",
+			expected: nil,
+		},
+		{
+			input:    "if (1 < 2) {10} else {5}",
+			expected: 10,
+		},
+		{
+			input:    "if (1 > 2) {10} else {5}",
+			expected: 5,
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		integer, ok := test.expected.(int)
+		t.Logf("%t", ok)
+		if !ok {
+			testNullObject(t, eval)
+			continue
+		}
+		testIntegerObject(t, eval, int64(integer))
+	}
+}
+
 func testEval(input string) object.Object {
 	lex := lexer.New(input)
 	par := parser.New(lex)
@@ -253,6 +301,14 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 
 	if boolean.Value != expected {
 		t.Errorf("[Test] Invalid boolean value: received %t, expected %t", boolean.Value, expected)
+		return false
+	}
+	return true
+}
+
+func testNullObject(t *testing.T, obj object.Object) bool {
+	if obj != NULL {
+		t.Errorf("[Test] Invalid null object: received %T, expected: *evaluator.NULL", obj)
 		return false
 	}
 	return true
