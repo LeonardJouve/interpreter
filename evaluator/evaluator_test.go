@@ -341,6 +341,10 @@ func TestErrorHandling(t *testing.T) {
 			input:    "if (10 > 1) {if (10 > 1) {return true + false;} return 10;}",
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
+		{
+			input:    "foo",
+			expected: "identifier not found: foo",
+		},
 	}
 
 	for _, test := range tests {
@@ -358,12 +362,43 @@ func TestErrorHandling(t *testing.T) {
 	}
 }
 
+func TestEvalLetStatements(t *testing.T) {
+	type EvalLetStatementsTests struct {
+		input    string
+		expected int64
+	}
+	tests := []EvalLetStatementsTests{
+		{
+			input:    "let x = 5; x;",
+			expected: 5,
+		},
+		{
+			input:    "let x = 5 * 5; x;",
+			expected: 25,
+		},
+		{
+			input:    "let x = 5; let y = x; y;",
+			expected: 5,
+		},
+		{
+			input:    "let x = 5; let y = x; let z = x + y + 5; z;",
+			expected: 15,
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		testIntegerObject(t, eval, test.expected)
+	}
+}
+
 func testEval(input string) object.Object {
 	lex := lexer.New(input)
 	par := parser.New(lex)
 	program := par.ParseProgram()
+	env := object.NewEnvironement()
 
-	return Eval(program)
+	return Eval(program, env)
 }
 
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {

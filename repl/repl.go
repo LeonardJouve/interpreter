@@ -6,6 +6,7 @@ import (
 	"io"
 	"leonardjouve/evaluator"
 	"leonardjouve/lexer"
+	"leonardjouve/object"
 	"leonardjouve/parser"
 )
 
@@ -13,6 +14,7 @@ const PROMPT = ">> "
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
+	env := object.NewEnvironement()
 
 	for {
 		fmt.Fprint(out, PROMPT)
@@ -32,7 +34,7 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		eval := evaluator.Eval(program)
+		eval := evaluator.Eval(program, env)
 		if eval == nil {
 			continue
 		}
