@@ -19,10 +19,15 @@ type Boolean struct {
 
 type Null struct{}
 
+type Return struct {
+	Value Object
+}
+
 const (
 	NULL    = "NULL"
 	INTEGER = "INTEGER"
 	BOOLEAN = "BOOLEAN"
+	RETURN  = "RETURN"
 )
 
 func (integer *Integer) Type() ObjectType {
@@ -44,4 +49,11 @@ func (null *Null) Type() ObjectType {
 }
 func (null *Null) Inspect() string {
 	return "null"
+}
+
+func (ret *Return) Type() ObjectType {
+	return RETURN
+}
+func (ret *Return) Inspect() string {
+	return ret.Value.Inspect()
 }
