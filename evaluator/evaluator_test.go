@@ -271,39 +271,90 @@ func TestIfElseExpressions(t *testing.T) {
 
 func TestEvalReturnStatements(t *testing.T) {
 	type EvalReturnStatementsTest struct {
-		input  string
-		expect int64
+		input    string
+		expected int64
 	}
 	tests := []EvalReturnStatementsTest{
 		{
-			input:  "return 10;",
-			expect: 10,
+			input:    "return 10;",
+			expected: 10,
 		},
 		{
-			input:  "return 10; 9;",
-			expect: 10,
+			input:    "return 10; 9;",
+			expected: 10,
 		},
 		{
-			input:  "return 2 * 5; 9;",
-			expect: 10,
+			input:    "return 2 * 5; 9;",
+			expected: 10,
 		},
 		{
-			input:  "9; return 2 * 5; 9;",
-			expect: 10,
+			input:    "9; return 2 * 5; 9;",
+			expected: 10,
 		},
 		{
-			input:  "9; return 2 * 5; return 9;",
-			expect: 10,
+			input:    "9; return 2 * 5; return 9;",
+			expected: 10,
 		},
 		{
-			input:  "if (true) {if (true) {return 1;} return 2}",
-			expect: 1,
+			input:    "if (true) {if (true) {return 1;} return 2}",
+			expected: 1,
 		},
 	}
 
 	for _, test := range tests {
 		eval := testEval(test.input)
-		testIntegerObject(t, eval, test.expect)
+		testIntegerObject(t, eval, test.expected)
+	}
+}
+
+func TestErrorHandling(t *testing.T) {
+	type ErrorHandlingTest struct {
+		input    string
+		expected string
+	}
+	tests := []ErrorHandlingTest{
+		{
+			input:    "5 + true;",
+			expected: "type mismatch: INTEGER + BOOLEAN",
+		},
+		{
+			input:    "5 + true; 5;",
+			expected: "type mismatch: INTEGER + BOOLEAN",
+		},
+		{
+			input:    "-true;",
+			expected: "unknown operation: -BOOLEAN",
+		},
+		{
+			input:    "true + false;",
+			expected: "unknown operation: BOOLEAN + BOOLEAN",
+		},
+		{
+			input:    "5; true + false; 5;",
+			expected: "unknown operation: BOOLEAN + BOOLEAN",
+		},
+		{
+			input:    "if (10 > 1) {return true + false;}",
+			expected: "unknown operation: BOOLEAN + BOOLEAN",
+		},
+		{
+			input:    "if (10 > 1) {if (10 > 1) {return true + false;} return 10;}",
+			expected: "unknown operation: BOOLEAN + BOOLEAN",
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		err, ok := eval.(*object.Error)
+		if !ok {
+			t.Errorf("[Test] Invalid evaluation type: received %T, expected *object.Error", eval)
+			continue
+		}
+
+		if err.Value != test.expected {
+			t.Errorf("[Test] Invalid error value: received %s, expected %s", err.Value, test.expected)
+			continue
+		}
 	}
 }
 

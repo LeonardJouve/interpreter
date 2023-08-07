@@ -23,11 +23,16 @@ type Return struct {
 	Value Object
 }
 
+type Error struct {
+	Value string
+}
+
 const (
 	NULL    = "NULL"
 	INTEGER = "INTEGER"
 	BOOLEAN = "BOOLEAN"
 	RETURN  = "RETURN"
+	ERROR   = "ERROR"
 )
 
 func (integer *Integer) Type() ObjectType {
@@ -56,4 +61,11 @@ func (ret *Return) Type() ObjectType {
 }
 func (ret *Return) Inspect() string {
 	return ret.Value.Inspect()
+}
+
+func (err *Error) Type() ObjectType {
+	return ERROR
+}
+func (err *Error) Inspect() string {
+	return "[Error] " + err.Value
 }
