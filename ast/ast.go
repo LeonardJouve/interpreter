@@ -213,7 +213,7 @@ func (statement *BlockStatement) String() string {
 	var out bytes.Buffer
 
 	for _, statement := range statement.Statements {
-		out.WriteString(statement.String())
+		out.WriteString("\t" + statement.String())
 	}
 
 	return out.String()

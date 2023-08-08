@@ -38,7 +38,7 @@ func Start(in io.Reader, out io.Writer) {
 		if eval == nil {
 			continue
 		}
-		io.WriteString(out, "\t"+eval.Inspect()+"\n")
+		io.WriteString(out, eval.Inspect()+"\n")
 	}
 }
 
