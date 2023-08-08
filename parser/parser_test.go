@@ -28,7 +28,7 @@ func TestLetStatements(t *testing.T) {
 		{
 			input:              "let foo = x;",
 			expectedIdentifier: "foo",
-			expectedValue:      "x",
+			expectedValue:      token.TokenLiteral("x"),
 		},
 	}
 
@@ -69,7 +69,7 @@ func TestReturnStatement(t *testing.T) {
 		},
 		{
 			input:    "return x + y;",
-			expected: "x + y",
+			expected: "(x + y)",
 		},
 	}
 
@@ -629,8 +629,8 @@ func TestCallExpressionParsing(t *testing.T) {
 	}
 
 	testLiteralExpression(t, callExpression.Arguments[0], 1)
-	testInfixExpression(t, callExpression.Arguments[1], "+", token.TokenLiteral("2"), token.TokenLiteral("3"))
-	testInfixExpression(t, callExpression.Arguments[2], "*", token.TokenLiteral("4"), token.TokenLiteral("5"))
+	testInfixExpression(t, callExpression.Arguments[1], "+", 2, 3)
+	testInfixExpression(t, callExpression.Arguments[2], "*", 4, 5)
 }
 
 func TestCallExpressionArgumentsParsing(t *testing.T) {

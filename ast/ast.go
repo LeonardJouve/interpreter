@@ -162,8 +162,6 @@ func (statement *ReturnStatement) String() string {
 		out.WriteString(statement.Value.String())
 	}
 
-	out.WriteByte(';')
-
 	return out.String()
 }
 
@@ -281,7 +279,7 @@ func (expression *CallExpression) String() string {
 		args = append(args, argument.String())
 	}
 
-	out.WriteString(expression.Function.String() + " (" + strings.Join(args, ", ") + ")")
+	out.WriteString(expression.Function.String() + "(" + strings.Join(args, ", ") + ")")
 
 	return out.String()
 }
