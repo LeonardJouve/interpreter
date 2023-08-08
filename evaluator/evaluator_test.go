@@ -299,6 +299,18 @@ func TestEvalReturnStatements(t *testing.T) {
 			input:    "if (true) {if (true) {return 1;} return 2}",
 			expected: 1,
 		},
+		{
+			input:    "if (10 > 1) {if (10 > 1) {return 10;}return 1;}",
+			expected: 10,
+		},
+		{
+			input:    "let f = fn(x) {return x; x + 10;};f(10);",
+			expected: 10,
+		},
+		{
+			input:    "let f = fn(x) {let result = x + 10; return result; return 10;}; f(10);",
+			expected: 20,
+		},
 	}
 
 	for _, test := range tests {
@@ -390,6 +402,80 @@ func TestEvalLetStatements(t *testing.T) {
 		eval := testEval(test.input)
 		testIntegerObject(t, eval, test.expected)
 	}
+}
+
+func TestFunctionObject(t *testing.T) {
+	input := "fn(x) {return x + 2;}"
+	eval := testEval(input)
+
+	function, ok := eval.(*object.Function)
+	if !ok {
+		t.Fatalf("[Test] Invalid evaluation type: received %T, expected *object.Function", eval)
+	}
+
+	expectedParamsAmount := 1
+	if paramsAmount := len(function.Parameters); paramsAmount != expectedParamsAmount {
+		t.Fatalf("[Test] Invalid parameters amout: received %d, expected %d", expectedParamsAmount, paramsAmount)
+	}
+
+	expectedFunctionParameter := "x"
+	if functionParameter := function.Parameters[0].String(); functionParameter != expectedFunctionParameter {
+		t.Fatalf("[Test] Invalid parameter: received %s, expected %s", functionParameter, expectedFunctionParameter)
+	}
+
+	expectedFunctionBody := "return (x + 2)"
+	if functionBody := function.Body.String(); functionBody != expectedFunctionBody {
+		t.Fatalf("[Test] Invalid function body: received %s, expected %s", functionBody, expectedFunctionBody)
+	}
+}
+
+func TestFunctionApplication(t *testing.T) {
+	type FunctionApplicationTest struct {
+		input    string
+		expected int64
+	}
+	tests := []FunctionApplicationTest{
+		{
+			input:    "let identify = fn(x) {x;}; identify(5);",
+			expected: 5,
+		},
+		{
+			input:    "let identify = fn(x) {return x;}; identify(5);",
+			expected: 5,
+		},
+		{
+			input:    "let double = fn(x) {x * 2;}; double(5);",
+			expected: 10,
+		},
+		{
+			input:    "let double = fn(x) {return x * 2;}; double(5);",
+			expected: 10,
+		},
+		{
+			input:    "let add = fn(x, y) {x + y;}; add(5, 5);",
+			expected: 10,
+		},
+		{
+			input:    "let add = fn(x, y) {x + y;}; add(5 + 5, add(5, 5));",
+			expected: 20,
+		},
+		{
+			input:    "fn(x) {x;}(5);",
+			expected: 5,
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		testIntegerObject(t, eval, test.expected)
+	}
+}
+
+func TestClosures(t *testing.T) {
+	input := "let newAdder = fn(x) {return fn(y) {return x + y;};}; let x = 10; let y = 10; let addTwo = newAdder(2); addTwo(2);"
+
+	eval := testEval(input)
+	testIntegerObject(t, eval, 4)
 }
 
 func testEval(input string) object.Object {

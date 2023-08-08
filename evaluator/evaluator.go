@@ -65,6 +65,23 @@ func Eval(node ast.Node, env *object.Environement) object.Object {
 		return value
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
+	case *ast.FunctionLiteral:
+		return &object.Function{
+			Parameters: node.Parameters,
+			Body:       node.Body,
+			Env:        env,
+		}
+	case *ast.CallExpression:
+		function := Eval(node.Function, env)
+		if isError(function) {
+			return function
+		}
+		arguments := evalExpressions(node.Arguments, env)
+		if len(arguments) == 1 && isError(arguments[0]) {
+			return arguments[0]
+		}
+
+		return applyFunction(function, arguments)
 	default:
 		return nil
 	}
@@ -229,10 +246,58 @@ func evalIdentifier(identifier *ast.Identifier, env *object.Environement) object
 	return value
 }
 
+func evalExpressions(expressions []ast.Expression, env *object.Environement) []object.Object {
+	var exps []object.Object
+
+	for _, exp := range expressions {
+		eval := Eval(exp, env)
+		if isError(eval) {
+			return []object.Object{
+				eval,
+			}
+		}
+		exps = append(exps, eval)
+	}
+
+	return exps
+}
+
+func applyFunction(function object.Object, arguments []object.Object) object.Object {
+	fun, ok := function.(*object.Function)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("not a function: %s", function.Inspect()),
+		}
+	}
+
+	extendedEnv := extendFunctionEnvironement(fun, arguments)
+	eval := Eval(fun.Body, extendedEnv)
+	return unwrapReturnValue(eval)
+}
+
+func extendFunctionEnvironement(function *object.Function, arguments []object.Object) *object.Environement {
+	enclosedEnv := object.NewEnclosedEnvironement(function.Env)
+
+	for i, parameter := range function.Parameters {
+		enclosedEnv.Set(parameter.Value, arguments[i])
+	}
+
+	return enclosedEnv
+}
+
 func isTruthy(obj object.Object) bool {
 	return obj != FALSE && obj != NULL
 }
 
 func isError(obj object.Object) bool {
 	return obj != nil && obj.Type() == object.ERROR
+}
+
+func unwrapReturnValue(obj object.Object) object.Object {
+	returnObject, ok := obj.(*object.Return)
+	if !ok {
+		return obj
+	}
+
+	return returnObject.Value
 }

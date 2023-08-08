@@ -1,6 +1,12 @@
 package object
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"leonardjouve/ast"
+	"leonardjouve/token"
+	"strings"
+)
 
 type ObjectType string
 
@@ -27,12 +33,19 @@ type Error struct {
 	Value string
 }
 
+type Function struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environement
+}
+
 const (
-	NULL    = "NULL"
-	INTEGER = "INTEGER"
-	BOOLEAN = "BOOLEAN"
-	RETURN  = "RETURN"
-	ERROR   = "ERROR"
+	NULL     = "NULL"
+	INTEGER  = "INTEGER"
+	BOOLEAN  = "BOOLEAN"
+	RETURN   = "RETURN"
+	ERROR    = "ERROR"
+	FUNCTION = "FUNCTION"
 )
 
 func (integer *Integer) Type() ObjectType {
@@ -68,4 +81,25 @@ func (err *Error) Type() ObjectType {
 }
 func (err *Error) Inspect() string {
 	return "[Error] " + err.Value
+}
+
+func (function *Function) Type() ObjectType {
+	return FUNCTION
+}
+func (function *Function) Inspect() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, param := range function.Parameters {
+		params = append(params, param.String())
+	}
+
+	functionKeyword, ok := token.GetKeywordFromType(token.FUNCTION)
+	if ok {
+		out.WriteString(string(functionKeyword))
+	}
+
+	out.WriteString("(" + strings.Join(params, ", ") + ") {\n" + function.Body.String() + "\n}")
+
+	return out.String()
 }
