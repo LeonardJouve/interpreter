@@ -52,8 +52,6 @@ func (lexer *Lexer) NextToken() token.Token {
 		tokenType = token.LR
 	case '>':
 		tokenType = token.GR
-	case 0:
-		tokenType = token.EOF
 	case '=':
 		if nextChar := lexer.getNextChar(); nextChar == '=' {
 			tokenType = token.EQUAL
@@ -73,6 +71,12 @@ func (lexer *Lexer) NextToken() token.Token {
 	case '"':
 		tokenType = token.STRING
 		tokenLiteral = lexer.readString()
+	case '[':
+		tokenType = token.LBRACKET
+	case ']':
+		tokenType = token.RBRACKET
+	case 0:
+		tokenType = token.EOF
 	default:
 		if isLetter(lexer.char) {
 			tokenLiteral = lexer.readIdentifier()

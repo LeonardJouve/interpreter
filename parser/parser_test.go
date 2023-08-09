@@ -418,6 +418,14 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			input:    "add(a + b + c * d / f + g)",
 			expected: "add((((a + b) + ((c * d) / f)) + g))",
 		},
+		{
+			input:    "a * [1, 2, 3, 4][b * c] * d",
+			expected: "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+		},
+		{
+			input:    "add(a * b[2], b[1], 2 * [1, 2][1])",
+			expected: "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+		},
 	}
 
 	for _, test := range tests {
@@ -726,6 +734,71 @@ func TestStringLiteralExpressions(t *testing.T) {
 
 	if expectedStringLiteralValue := "hello world"; stringLiteral.Value != expectedStringLiteralValue {
 		t.Fatalf("[Test] Invalid string literal value: received %s, expected: %s", stringLiteral.Value, expectedStringLiteralValue)
+	}
+}
+
+func TestArrayLiterals(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	arrayLiteral, ok := expressionStatement.Value.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.ArrayLiteral", expressionStatement.Value)
+	}
+
+	expectedElementAmount := 3
+	if elementAmount := len(arrayLiteral.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid array literal element amount: received %d, expected: %d", elementAmount, expectedElementAmount)
+	}
+
+	testIntegerLiteral(t, arrayLiteral.Value[0], 1)
+	testInfixExpression(t, arrayLiteral.Value[1], "*", 2, 2)
+	testInfixExpression(t, arrayLiteral.Value[2], "+", 3, 3)
+}
+
+func TestIndexExpressions(t *testing.T) {
+	input := "array[1 + 1]"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	indexExpression, ok := expressionStatement.Value.(*ast.IndexExpression)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.ArrayLiteral", expressionStatement.Value)
+	}
+
+	if !testIdentifier(t, indexExpression.Left, "array") {
+		return
+	}
+
+	if !testInfixExpression(t, indexExpression.Index, "+", 1, 1) {
+		return
 	}
 }
 

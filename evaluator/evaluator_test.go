@@ -527,6 +527,54 @@ func TestBuiltinFunctions(t *testing.T) {
 			input:    "len(\"one\", \"two\")",
 			expected: "wrong arguments amount: received 2, expected 1",
 		},
+		{
+			input:    "len([1, 2, 3])",
+			expected: 3,
+		},
+		{
+			input:    "len([])",
+			expected: 0,
+		},
+		{
+			input:    "first([1, 2, 3])",
+			expected: 1,
+		},
+		{
+			input:    "first([])",
+			expected: nil,
+		},
+		{
+			input:    "first(1)",
+			expected: "unsupported argument for builtin function first: INTEGER",
+		},
+		{
+			input:    "last([1, 2, 3])",
+			expected: 3,
+		},
+		{
+			input:    "last([])",
+			expected: nil,
+		},
+		{
+			input:    "last(1)",
+			expected: "unsupported argument for builtin function last: INTEGER",
+		},
+		{
+			input:    "rest([1, 2, 3])",
+			expected: []int{2, 3},
+		},
+		{
+			input:    "rest([])",
+			expected: nil,
+		},
+		{
+			input:    "push([], 1)",
+			expected: []int{1},
+		},
+		{
+			input:    "push(1, 1)",
+			expected: "unsupported argument for builtin function push: INTEGER",
+		},
 	}
 
 	for _, test := range tests {
@@ -537,7 +585,103 @@ func TestBuiltinFunctions(t *testing.T) {
 			testIntegerObject(t, eval, int64(expected))
 		case string:
 			testError(t, eval, expected)
+		case []int:
+			array, ok := eval.(*object.Array)
+			if !ok {
+				t.Errorf("[Test] Invalid object type: received %T, expected *object.Array", eval)
+				continue
+			}
+
+			expectedElementAmount := len(array.Value)
+			if elementAmount := len(array.Value); elementAmount != expectedElementAmount {
+				t.Errorf("[Test] Invalid array element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+				continue
+			}
+
+			for i, expectedElement := range expected {
+				testIntegerObject(t, array.Value[i], int64(expectedElement))
+			}
+		case nil:
+			testNullObject(t, eval)
 		}
+	}
+}
+
+func TestArrayLiteral(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	eval := testEval(input)
+	array, ok := eval.(*object.Array)
+	if !ok {
+		t.Fatalf("[Test] Invalid object type: received %T, expected *object.Array", eval)
+	}
+
+	expectedElementAmount := 3
+	if elementAmount := len(array.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+	}
+
+	testIntegerObject(t, array.Value[0], 1)
+	testIntegerObject(t, array.Value[1], 4)
+	testIntegerObject(t, array.Value[2], 6)
+}
+
+func TestArrayIndexExpressions(t *testing.T) {
+	type ArrayIndexExpressionTest struct {
+		input    string
+		expected interface{}
+	}
+	tests := []ArrayIndexExpressionTest{
+		{
+			input:    "[1, 2, 3][0];",
+			expected: 1,
+		},
+		{
+			input:    "[1, 2, 3][1];",
+			expected: 2,
+		},
+		{
+			input:    "[1, 2, 3][2];",
+			expected: 3,
+		},
+		{
+			input:    "let x = 0; [1][x];",
+			expected: 1,
+		},
+		{
+			input:    "[1, 2, 3][1 + 1];",
+			expected: 3,
+		},
+		{
+			input:    "let x = [1, 2, 3]; x[2];",
+			expected: 3,
+		},
+		{
+			input:    "let x = [1, 2, 3]; x[0] + x[1] + x[2];",
+			expected: 6,
+		},
+		{
+			input:    "let x = [1, 2, 3]; let y = x[0]; x[y];",
+			expected: 2,
+		},
+		{
+			input:    "[1, 2, 3][3];",
+			expected: nil,
+		},
+		{
+			input:    "[1, 2, 3][-1];",
+			expected: nil,
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		expected, ok := test.expected.(int)
+		if !ok {
+			testNullObject(t, eval)
+			continue
+		}
+		testIntegerObject(t, eval, int64(expected))
 	}
 }
 

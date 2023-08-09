@@ -86,6 +86,25 @@ func Eval(node ast.Node, env *object.Environement) object.Object {
 		return &object.String{
 			Value: node.Value,
 		}
+	case *ast.ArrayLiteral:
+		elements := evalExpressions(node.Value, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+
+		return &object.Array{
+			Value: elements,
+		}
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index)
 	default:
 		return nil
 	}
@@ -296,6 +315,40 @@ func evalExpressions(expressions []ast.Expression, env *object.Environement) []o
 	}
 
 	return exps
+}
+
+func evalIndexExpression(left object.Object, index object.Object) object.Object {
+	switch {
+	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
+		return evalArrayIndexExpression(left, index)
+	default:
+		return &object.Error{
+			Value: fmt.Sprintf("unsupported index operation: %s", left.Type()),
+		}
+	}
+}
+
+func evalArrayIndexExpression(array object.Object, index object.Object) object.Object {
+	arr, ok := array.(*object.Array)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("invalid object type: received %T, expected *object.Array", array),
+		}
+	}
+	i, ok := index.(*object.Integer)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("invalid object type: received %T, expected *object.Integer", index),
+		}
+	}
+	idx := i.Value
+	max := int64(len(arr.Value) - 1)
+
+	if idx < 0 || idx > max {
+		return NULL
+	}
+
+	return arr.Value[idx]
 }
 
 func applyFunction(function object.Object, arguments []object.Object) object.Object {
