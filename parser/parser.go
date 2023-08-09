@@ -102,6 +102,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.LPAREN:     parser.parseGroupedExpression,
 		token.IF:         parser.parseIfExpression,
 		token.FUNCTION:   parser.parseFunctionLiteral,
+		token.STRING:     parser.parseStringLiteral,
 	}
 }
 
@@ -456,4 +457,11 @@ func (parser *Parser) parseCallArguments() []ast.Expression {
 	}
 
 	return args
+}
+
+func (parser *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{
+		Token: parser.tok,
+		Value: string(parser.tok.Literal),
+	}
 }

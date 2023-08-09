@@ -701,6 +701,34 @@ func TestCallExpressionArgumentsParsing(t *testing.T) {
 	}
 }
 
+func TestStringLiteralExpressions(t *testing.T) {
+	input := "\"hello world\";"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	stringLiteral, ok := expressionStatement.Value.(*ast.StringLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.StringLiteral", expressionStatement.Value)
+	}
+
+	if expectedStringLiteralValue := "hello world"; stringLiteral.Value != expectedStringLiteralValue {
+		t.Fatalf("[Test] Invalid string literal value: received %s, expected: %s", stringLiteral.Value, expectedStringLiteralValue)
+	}
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {

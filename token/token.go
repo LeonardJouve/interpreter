@@ -14,6 +14,7 @@ const (
 
 	IDENTIFIER = "IDENTIFIER"
 	INT        = "INT"
+	STRING     = "STRING"
 
 	ASSIGN    = "ASSIGN"
 	PLUS      = "PLUS"

@@ -70,6 +70,9 @@ func (lexer *Lexer) NextToken() token.Token {
 		} else {
 			tokenType = token.BANG
 		}
+	case '"':
+		tokenType = token.STRING
+		tokenLiteral = lexer.readString()
 	default:
 		if isLetter(lexer.char) {
 			tokenLiteral = lexer.readIdentifier()
@@ -99,6 +102,18 @@ func (lexer *Lexer) readNumber() token.TokenLiteral {
 		lexer.readChar()
 	}
 	return token.TokenLiteral(lexer.input[position:lexer.readPosition])
+}
+
+func (lexer *Lexer) readString() token.TokenLiteral {
+	position := lexer.position + 1
+	for {
+		lexer.readChar()
+		if lexer.char == '"' || lexer.char == 0 {
+			break
+		}
+	}
+
+	return token.TokenLiteral(lexer.input[position:lexer.position])
 }
 
 func (lexer *Lexer) readChar() {

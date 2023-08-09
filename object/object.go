@@ -39,6 +39,16 @@ type Function struct {
 	Env        *Environement
 }
 
+type String struct {
+	Value string
+}
+
+type BuiltinFunction func(args ...Object) Object
+
+type Builtin struct {
+	Value BuiltinFunction
+}
+
 const (
 	NULL     = "NULL"
 	INTEGER  = "INTEGER"
@@ -46,6 +56,8 @@ const (
 	RETURN   = "RETURN"
 	ERROR    = "ERROR"
 	FUNCTION = "FUNCTION"
+	STRING   = "STRING"
+	BUILTIN  = "BUILTIN"
 )
 
 func (integer *Integer) Type() ObjectType {
@@ -102,4 +114,18 @@ func (function *Function) Inspect() string {
 	out.WriteString("(" + strings.Join(params, ", ") + ") {\n" + function.Body.String() + "\n}")
 
 	return out.String()
+}
+
+func (str *String) Type() ObjectType {
+	return STRING
+}
+func (str *String) Inspect() string {
+	return str.Value
+}
+
+func (builtin *Builtin) Type() ObjectType {
+	return BUILTIN
+}
+func (builtin *Builtin) Inspect() string {
+	return "builtin function"
 }

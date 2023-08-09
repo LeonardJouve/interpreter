@@ -82,6 +82,10 @@ func Eval(node ast.Node, env *object.Environement) object.Object {
 		}
 
 		return applyFunction(function, arguments)
+	case *ast.StringLiteral:
+		return &object.String{
+			Value: node.Value,
+		}
 	default:
 		return nil
 	}
@@ -167,6 +171,8 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 	switch {
 	case left.Type() == object.INTEGER && right.Type() == object.INTEGER:
 		return evalIntegerInfixExpression(operator, left, right)
+	case left.Type() == object.STRING && right.Type() == object.STRING:
+		return evalStringInfixExpression(operator, left, right)
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
@@ -220,6 +226,30 @@ func evalIntegerInfixExpression(operator string, left object.Object, right objec
 	}
 }
 
+func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	if operator != "+" {
+		return &object.Error{
+			Value: fmt.Sprintf("unknown operation: %s %s %s", left.Type(), operator, right.Type()),
+		}
+	}
+
+	leftValue, ok := left.(*object.String)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("invalid object type: received %T, expected *object.String", left),
+		}
+	}
+	rightValue, ok := right.(*object.String)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("invalid object type: received %T, expected *object.String", right),
+		}
+	}
+	return &object.String{
+		Value: leftValue.Value + rightValue.Value,
+	}
+}
+
 func evalIfExpression(ifExpression *ast.IfExpression, env *object.Environement) object.Object {
 	condition := Eval(ifExpression.Condition, env)
 
@@ -238,12 +268,18 @@ func evalIfExpression(ifExpression *ast.IfExpression, env *object.Environement) 
 
 func evalIdentifier(identifier *ast.Identifier, env *object.Environement) object.Object {
 	value, ok := env.Get(identifier.Value)
-	if !ok {
-		return &object.Error{
-			Value: fmt.Sprintf("identifier not found: %s", identifier.String()),
-		}
+	if ok {
+		return value
 	}
-	return value
+
+	builtin, ok := builtins[identifier.Value]
+	if ok {
+		return builtin
+	}
+
+	return &object.Error{
+		Value: fmt.Sprintf("identifier not found: %s", identifier.String()),
+	}
 }
 
 func evalExpressions(expressions []ast.Expression, env *object.Environement) []object.Object {
@@ -263,16 +299,18 @@ func evalExpressions(expressions []ast.Expression, env *object.Environement) []o
 }
 
 func applyFunction(function object.Object, arguments []object.Object) object.Object {
-	fun, ok := function.(*object.Function)
-	if !ok {
+	switch function := function.(type) {
+	case *object.Function:
+		extendedEnv := extendFunctionEnvironement(function, arguments)
+		eval := Eval(function.Body, extendedEnv)
+		return unwrapReturnValue(eval)
+	case *object.Builtin:
+		return function.Value(arguments...)
+	default:
 		return &object.Error{
 			Value: fmt.Sprintf("not a function: %s", function.Inspect()),
 		}
 	}
-
-	extendedEnv := extendFunctionEnvironement(fun, arguments)
-	eval := Eval(fun.Body, extendedEnv)
-	return unwrapReturnValue(eval)
 }
 
 func extendFunctionEnvironement(function *object.Function, arguments []object.Object) *object.Environement {

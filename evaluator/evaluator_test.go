@@ -350,6 +350,10 @@ func TestErrorHandling(t *testing.T) {
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
 		{
+			input:    "\"a\" - \"b\"",
+			expected: "unknown operation: STRING - STRING",
+		},
+		{
 			input:    "if (10 > 1) {if (10 > 1) {return true + false;} return 10;}",
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
@@ -361,16 +365,7 @@ func TestErrorHandling(t *testing.T) {
 
 	for _, test := range tests {
 		eval := testEval(test.input)
-		err, ok := eval.(*object.Error)
-		if !ok {
-			t.Errorf("[Test] Invalid evaluation type: received %T, expected *object.Error", eval)
-			continue
-		}
-
-		if err.Value != test.expected {
-			t.Errorf("[Test] Invalid error value: received %s, expected %s", err.Value, test.expected)
-			continue
-		}
+		testError(t, eval, test.expected)
 	}
 }
 
@@ -478,6 +473,74 @@ func TestClosures(t *testing.T) {
 	testIntegerObject(t, eval, 4)
 }
 
+func TestStringLiterals(t *testing.T) {
+	input := "\"hello world\""
+
+	eval := testEval(input)
+	str, ok := eval.(*object.String)
+	if !ok {
+		t.Fatalf("[Test] Invalid object type: received %T, expected *object.String", eval)
+	}
+
+	if expectedStringValue := "hello world"; str.Value != expectedStringValue {
+		t.Fatalf("[Test] Invalid string object value: received %s, expected %s", str.Value, expectedStringValue)
+	}
+}
+
+func TestStringConcatenation(t *testing.T) {
+	input := "\"hello\" + \" \" + \"world\""
+
+	eval := testEval(input)
+	str, ok := eval.(*object.String)
+	if !ok {
+		t.Fatalf("[Test] Invalid object type: received %T, expected *object.String", eval)
+	}
+
+	if expectedStringValue := "hello world"; str.Value != expectedStringValue {
+		t.Fatalf("[Test] Invalid string object value: received %s, expected %s", str.Value, expectedStringValue)
+	}
+}
+
+func TestBuiltinFunctions(t *testing.T) {
+	type BuiltinFunctionTest struct {
+		input    string
+		expected interface{}
+	}
+	tests := []BuiltinFunctionTest{
+		{
+			input:    "len(\"\")",
+			expected: 0,
+		},
+		{
+			input:    "len(\"four\")",
+			expected: 4,
+		},
+		{
+			input:    "len(\"hello world\")",
+			expected: 11,
+		},
+		{
+			input:    "len(1)",
+			expected: "unsupported argument for builtin function len: INTEGER",
+		},
+		{
+			input:    "len(\"one\", \"two\")",
+			expected: "wrong arguments amount: received 2, expected 1",
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+
+		switch expected := test.expected.(type) {
+		case int:
+			testIntegerObject(t, eval, int64(expected))
+		case string:
+			testError(t, eval, expected)
+		}
+	}
+}
+
 func testEval(input string) object.Object {
 	lex := lexer.New(input)
 	par := parser.New(lex)
@@ -519,6 +582,20 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 func testNullObject(t *testing.T, obj object.Object) bool {
 	if obj != NULL {
 		t.Errorf("[Test] Invalid null object: received %T, expected: *evaluator.NULL", obj)
+		return false
+	}
+	return true
+}
+
+func testError(t *testing.T, obj object.Object, expected string) bool {
+	err, ok := obj.(*object.Error)
+	if !ok {
+		t.Errorf("[Test] Invalid evaluation type: received %T, expected *object.Error", obj)
+		return false
+	}
+
+	if err.Value != expected {
+		t.Errorf("[Test] Invalid error value: received %s, expected %s", err.Value, expected)
 		return false
 	}
 	return true
