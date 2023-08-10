@@ -346,20 +346,24 @@ func TestErrorHandling(t *testing.T) {
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
 		{
-			input:    "if (10 > 1) {return true + false;}",
+			input:    "if (10 > 1) {return true + false;};",
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
 		{
-			input:    "\"a\" - \"b\"",
+			input:    "\"a\" - \"b\";",
 			expected: "unknown operation: STRING - STRING",
 		},
 		{
-			input:    "if (10 > 1) {if (10 > 1) {return true + false;} return 10;}",
+			input:    "if (10 > 1) {if (10 > 1) {return true + false;} return 10;};",
 			expected: "unknown operation: BOOLEAN + BOOLEAN",
 		},
 		{
-			input:    "foo",
+			input:    "foo;",
 			expected: "identifier not found: foo",
+		},
+		{
+			input:    "{\"name\": \"test\"}[fn(x) {return x;}];",
+			expected: "object is not hashable: FUNCTION",
 		},
 	}
 
@@ -575,6 +579,10 @@ func TestBuiltinFunctions(t *testing.T) {
 			input:    "push(1, 1)",
 			expected: "unsupported argument for builtin function push: INTEGER",
 		},
+		{
+			input:    "puts(1, true, \"foo\", [2, false, \"bar\"], {\"one\": \"1\", 2: 2, true: true}, fn(x) {return x;})",
+			expected: nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -682,6 +690,94 @@ func TestArrayIndexExpressions(t *testing.T) {
 			continue
 		}
 		testIntegerObject(t, eval, int64(expected))
+	}
+}
+
+func TestHashLiterals(t *testing.T) {
+	input := "let two = \"two\"; {\"one\": 10 - 9, two: 1 + 1, \"thr\" + \"ee\": 6 / 2, 4: 4, true: 5, false: 6};"
+	expected := map[object.HashKey]int64{
+		(&object.String{
+			Value: "one",
+		}).HashKey(): 1,
+		(&object.String{
+			Value: "two",
+		}).HashKey(): 2,
+		(&object.String{
+			Value: "three",
+		}).HashKey(): 3,
+		(&object.Integer{
+			Value: 4,
+		}).HashKey(): 4,
+		TRUE.HashKey():  5,
+		FALSE.HashKey(): 6,
+	}
+
+	eval := testEval(input)
+
+	hash, ok := eval.(*object.Hash)
+	if !ok {
+		t.Fatalf("[Test] Invalid object type: received %T, expected *object.Hash", eval)
+	}
+
+	expectedElementAmount := len(expected)
+	if elementAmount := len(hash.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid hash literal element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+	}
+
+	for expectedKey, expectedValue := range expected {
+		element, ok := hash.Value[expectedKey]
+		if !ok {
+			t.Errorf("[Test] Invalid hash literal element key: received %d", expectedKey.Value)
+		}
+
+		testIntegerObject(t, element.Value, expectedValue)
+	}
+}
+
+func TestHashIndexExpressions(t *testing.T) {
+	type HashIndexExpressionTest struct {
+		input    string
+		expected interface{}
+	}
+	tests := []HashIndexExpressionTest{
+		{
+			input:    "{\"foo\": 5}[\"foo\"];",
+			expected: 5,
+		},
+		{
+			input:    "{\"foo\": 5}[\"bar\"];",
+			expected: nil,
+		},
+		{
+			input:    "let key = \"foo\"; {\"foo\": 5}[key];",
+			expected: 5,
+		},
+		{
+			input:    "{}[\"foo\"]",
+			expected: nil,
+		},
+		{
+			input:    "{10: 5}[10]",
+			expected: 5,
+		},
+		{
+			input:    "{true: 5}[true]",
+			expected: 5,
+		},
+		{
+			input:    "{false: 5}[false]",
+			expected: 5,
+		},
+	}
+
+	for _, test := range tests {
+		eval := testEval(test.input)
+		integer, ok := test.expected.(int)
+		if !ok {
+			testNullObject(t, eval)
+			continue
+		}
+		testIntegerObject(t, eval, int64(integer))
 	}
 }
 

@@ -75,6 +75,8 @@ func (lexer *Lexer) NextToken() token.Token {
 		tokenType = token.LBRACKET
 	case ']':
 		tokenType = token.RBRACKET
+	case ':':
+		tokenType = token.COLON
 	case 0:
 		tokenType = token.EOF
 	default:

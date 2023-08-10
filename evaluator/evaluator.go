@@ -105,6 +105,8 @@ func Eval(node ast.Node, env *object.Environement) object.Object {
 			return index
 		}
 		return evalIndexExpression(left, index)
+	case *ast.HashLiteral:
+		return evalHashLiteral(node, env)
 	default:
 		return nil
 	}
@@ -317,10 +319,45 @@ func evalExpressions(expressions []ast.Expression, env *object.Environement) []o
 	return exps
 }
 
+func evalHashLiteral(node *ast.HashLiteral, env *object.Environement) object.Object {
+	elements := make(map[object.HashKey]object.HashPair)
+
+	for keyObject, valueObject := range node.Value {
+		key := Eval(keyObject, env)
+		if isError(key) {
+			return key
+		}
+
+		hashableKey, ok := key.(object.Hashable)
+		if !ok {
+			return &object.Error{
+				Value: fmt.Sprintf("object is not hashable: %s", key.Type()),
+			}
+		}
+
+		value := Eval(valueObject, env)
+		if isError(value) {
+			return value
+		}
+
+		hash := hashableKey.HashKey()
+		elements[hash] = object.HashPair{
+			Key:   key,
+			Value: value,
+		}
+	}
+
+	return &object.Hash{
+		Value: elements,
+	}
+}
+
 func evalIndexExpression(left object.Object, index object.Object) object.Object {
 	switch {
 	case left.Type() == object.ARRAY && index.Type() == object.INTEGER:
 		return evalArrayIndexExpression(left, index)
+	case left.Type() == object.HASH:
+		return evalHashIndexExpression(left, index)
 	default:
 		return &object.Error{
 			Value: fmt.Sprintf("unsupported index operation: %s", left.Type()),
@@ -349,6 +386,29 @@ func evalArrayIndexExpression(array object.Object, index object.Object) object.O
 	}
 
 	return arr.Value[idx]
+}
+
+func evalHashIndexExpression(hash object.Object, index object.Object) object.Object {
+	hashObject, ok := hash.(*object.Hash)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("invalid object type: received %s, expected *object.Hash", hash.Type()),
+		}
+	}
+
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return &object.Error{
+			Value: fmt.Sprintf("object is not hashable: %s", index.Type()),
+		}
+	}
+
+	element, ok := hashObject.Value[key.HashKey()]
+	if !ok {
+		return NULL
+	}
+
+	return element.Value
 }
 
 func applyFunction(function object.Object, arguments []object.Object) object.Object {

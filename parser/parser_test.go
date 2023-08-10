@@ -802,6 +802,141 @@ func TestIndexExpressions(t *testing.T) {
 	}
 }
 
+func TestHashLiteralStringKeys(t *testing.T) {
+	input := "{\"one\": 1, \"two\": 2, \"three\": 3};"
+	expected := map[string]int64{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	hashLiteral, ok := expressionStatement.Value.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.HashLiteral", expressionStatement.Value)
+	}
+
+	expectedElementAmount := 3
+	if elementAmount := len(hashLiteral.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid hash literal element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+	}
+
+	for key, value := range hashLiteral.Value {
+		stringLiteral, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("[Test] Invalid hash literal key type: received %T, expected *ast.StringLiteral", key)
+		}
+
+		expectedValue, ok := expected[stringLiteral.Value]
+		if !ok {
+			t.Errorf("[Test] Invalid string literal value: received %s", stringLiteral.Value)
+			continue
+		}
+
+		testIntegerLiteral(t, value, expectedValue)
+	}
+}
+
+func TestEmptyHashLiterals(t *testing.T) {
+	input := "{};"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	hashLiteral, ok := expressionStatement.Value.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.HashLiteral", expressionStatement.Value)
+	}
+
+	expectedElementAmount := 0
+	if elementAmount := len(hashLiteral.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid hash literal element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+	}
+}
+
+func TestHashLiteralWithExpressions(t *testing.T) {
+	input := "{\"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5};"
+
+	type HashLiteralWithExpressionsTest map[string]func(expression ast.Expression)
+	tests := HashLiteralWithExpressionsTest{
+		"one": func(expression ast.Expression) {
+			testInfixExpression(t, expression, "+", 0, 1)
+		},
+		"two": func(expression ast.Expression) {
+			testInfixExpression(t, expression, "-", 10, 8)
+		},
+		"three": func(expression ast.Expression) {
+			testInfixExpression(t, expression, "/", 15, 5)
+		},
+	}
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	hashLiteral, ok := expressionStatement.Value.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.HashLiteral", expressionStatement.Value)
+	}
+
+	expectedElementAmount := 3
+	if elementAmount := len(hashLiteral.Value); elementAmount != expectedElementAmount {
+		t.Fatalf("[Test] Invalid hash literal element amount: received %d, expected %d", elementAmount, expectedElementAmount)
+	}
+
+	for key, value := range hashLiteral.Value {
+		stringLiteral, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("[Test] Invalid hash literal key type: received %T, expected *ast.StringLiteral", key)
+		}
+
+		test, ok := tests[stringLiteral.Value]
+		if !ok {
+			t.Errorf("[Test] Invalid string literal value: received %s", stringLiteral.Value)
+			continue
+		}
+
+		test(value)
+	}
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {

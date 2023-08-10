@@ -106,6 +106,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.FUNCTION:   parser.parseFunctionLiteral,
 		token.STRING:     parser.parseStringLiteral,
 		token.LBRACKET:   parser.parseArrayLiteral,
+		token.LBRACE:     parser.parseHashLiteral,
 	}
 }
 
@@ -481,6 +482,37 @@ func (parser *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	return arrayLiteral
+}
+
+func (parser *Parser) parseHashLiteral() ast.Expression {
+	hashLiteral := &ast.HashLiteral{
+		Token: parser.tok,
+		Value: make(map[ast.Expression]ast.Expression),
+	}
+
+	for parser.nextTok.Type != token.RBRACE {
+		parser.nextToken()
+		key := parser.parseExpression(LOWEST)
+
+		if !parser.expectNextTokenType(token.COLON) {
+			return nil
+		}
+
+		parser.nextToken()
+		value := parser.parseExpression(LOWEST)
+
+		hashLiteral.Value[key] = value
+
+		if parser.nextTok.Type != token.RBRACE && !parser.expectNextTokenType(token.COMMA) {
+			return nil
+		}
+	}
+
+	if !parser.expectNextTokenType(token.RBRACE) {
+		return nil
+	}
+
+	return hashLiteral
 }
 
 func (parser *Parser) parseIndexExpression(left ast.Expression) ast.Expression {

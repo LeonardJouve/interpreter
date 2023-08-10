@@ -109,6 +109,11 @@ type IndexExpression struct {
 	Index Expression
 }
 
+type HashLiteral struct {
+	Token token.Token
+	Value map[Expression]Expression
+}
+
 func (program *Program) TokenLiteral() token.TokenLiteral {
 	return token.TokenLiteral("")
 }
@@ -333,6 +338,23 @@ func (indexExpression *IndexExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(" + indexExpression.Left.String() + "[" + indexExpression.Index.String() + "])")
+
+	return out.String()
+}
+
+func (hashLiteral *HashLiteral) expressionNode() {}
+func (hashLiteral *HashLiteral) TokenLiteral() token.TokenLiteral {
+	return hashLiteral.Token.Literal
+}
+func (hashLiteral *HashLiteral) String() string {
+	var out bytes.Buffer
+
+	elements := []string{}
+	for key, value := range hashLiteral.Value {
+		elements = append(elements, key.String()+": "+value.String())
+	}
+
+	out.WriteString("{" + strings.Join(elements, ", ") + "}")
 
 	return out.String()
 }

@@ -30,6 +30,7 @@ func TestNextToken(t *testing.T) {
 	"foo";
 	"foo bar";
 	[1, 2];
+	{"foo": "bar"};
 	`
 	tests := []token.Token{
 		{Type: token.LET, Literal: "let"},
@@ -114,6 +115,12 @@ func TestNextToken(t *testing.T) {
 		{Type: token.COMMA, Literal: ","},
 		{Type: token.INT, Literal: "2"},
 		{Type: token.RBRACKET, Literal: "]"},
+		{Type: token.SEMICOLON, Literal: ";"},
+		{Type: token.LBRACE, Literal: "{"},
+		{Type: token.STRING, Literal: "foo"},
+		{Type: token.COLON, Literal: ":"},
+		{Type: token.STRING, Literal: "bar"},
+		{Type: token.RBRACE, Literal: "}"},
 		{Type: token.SEMICOLON, Literal: ";"},
 		{Type: token.EOF, Literal: "\x00"},
 	}

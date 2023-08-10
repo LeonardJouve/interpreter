@@ -29,6 +29,7 @@ const (
 	GR = "GR"
 
 	COMMA     = "COMMA"
+	COLON     = "COLON"
 	SEMICOLON = "SEMICOLON"
 
 	LPAREN   = "LPAREN"
