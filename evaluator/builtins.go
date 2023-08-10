@@ -157,4 +157,12 @@ var builtins = map[token.TokenLiteral]*object.Builtin{
 			}
 		},
 	},
+	"puts": {
+		Value: func(arguments ...object.Object) object.Object {
+			for _, argument := range arguments {
+				fmt.Println(argument.Inspect())
+			}
+			return NULL
+		},
+	},
 }
