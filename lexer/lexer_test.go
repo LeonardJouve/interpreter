@@ -31,6 +31,7 @@ func TestNextToken(t *testing.T) {
 	"foo bar";
 	[1, 2];
 	{"foo": "bar"};
+	macro(x, y) {x + y;};
 	`
 	tests := []token.Token{
 		{Type: token.LET, Literal: "let"},
@@ -120,6 +121,19 @@ func TestNextToken(t *testing.T) {
 		{Type: token.STRING, Literal: "foo"},
 		{Type: token.COLON, Literal: ":"},
 		{Type: token.STRING, Literal: "bar"},
+		{Type: token.RBRACE, Literal: "}"},
+		{Type: token.SEMICOLON, Literal: ";"},
+		{Type: token.MACRO, Literal: "macro"},
+		{Type: token.LPAREN, Literal: "("},
+		{Type: token.IDENTIFIER, Literal: "x"},
+		{Type: token.COMMA, Literal: ","},
+		{Type: token.IDENTIFIER, Literal: "y"},
+		{Type: token.RPAREN, Literal: ")"},
+		{Type: token.LBRACE, Literal: "{"},
+		{Type: token.IDENTIFIER, Literal: "x"},
+		{Type: token.PLUS, Literal: "+"},
+		{Type: token.IDENTIFIER, Literal: "y"},
+		{Type: token.SEMICOLON, Literal: ";"},
 		{Type: token.RBRACE, Literal: "}"},
 		{Type: token.SEMICOLON, Literal: ";"},
 		{Type: token.EOF, Literal: "\x00"},

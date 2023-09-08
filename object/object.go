@@ -72,6 +72,16 @@ type Hash struct {
 	Value map[HashKey]HashPair
 }
 
+type Quote struct {
+	Value ast.Node
+}
+
+type Macro struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environement
+}
+
 const (
 	NULL     = "NULL"
 	INTEGER  = "INTEGER"
@@ -83,6 +93,8 @@ const (
 	BUILTIN  = "BUILTIN"
 	ARRAY    = "ARRAY"
 	HASH     = "HASH"
+	QUOTE    = "QUOTE"
+	MACRO    = "MACRO"
 )
 
 func (integer *Integer) Type() ObjectType {
@@ -214,4 +226,23 @@ func (hash *Hash) Inspect() string {
 	out.WriteString("{" + strings.Join(elements, ", ") + "}")
 
 	return out.String()
+}
+
+func (quote *Quote) Type() ObjectType {
+	return QUOTE
+}
+func (quote *Quote) Inspect() string {
+	return "QUOTE(" + quote.Value.String() + ")"
+}
+
+func (macro *Macro) Type() ObjectType {
+	return MACRO
+}
+func (macro *Macro) Inspect() string {
+	parameters := []string{}
+	for _, parameter := range macro.Parameters {
+		parameters = append(parameters, parameter.String())
+	}
+
+	return "macro(" + strings.Join(parameters, ", ") + ") {\n" + macro.Body.String() + "\n}"
 }

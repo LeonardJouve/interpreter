@@ -937,6 +937,50 @@ func TestHashLiteralWithExpressions(t *testing.T) {
 	}
 }
 
+func TestMacroLiteralParsing(t *testing.T) {
+	input := "macro(x, y) {x + y;};"
+
+	lex := lexer.New(input)
+	parser := New(lex)
+	program := parser.ParseProgram()
+	testParserErrors(t, parser)
+
+	expectedStatementAmount := 1
+	if statementAmount := len(program.Statements); statementAmount != expectedStatementAmount {
+		t.Fatalf("[Test] Invalid statement amount: received %d, expected %d", statementAmount, expectedStatementAmount)
+	}
+
+	expressionStatement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid statement type: received %T, expected *ast.ExpressionStatement", program.Statements[0])
+	}
+
+	macro, ok := expressionStatement.Value.(*ast.MacroLiteral)
+	if !ok {
+		t.Fatalf("[Test] Invalid expression type: received %T, expected *ast.MacroLiteral", expressionStatement.Value)
+	}
+
+	expectedParameterAmount := 2
+	if parameterAmount := len(macro.Parameters); parameterAmount != expectedParameterAmount {
+		t.Fatalf("[Test] Invalid parameter amount: received %d, expected %d", parameterAmount, expectedParameterAmount)
+	}
+
+	testLiteralExpression(t, macro.Parameters[0], token.TokenLiteral("x"))
+	testLiteralExpression(t, macro.Parameters[1], token.TokenLiteral("y"))
+
+	expectedBodyStatementAmount := 1
+	if bodyStatementAmount := len(macro.Body.Statements); bodyStatementAmount != expectedBodyStatementAmount {
+		t.Fatalf("[Test] Invalid body statement amount: received %d, expected %d", bodyStatementAmount, expectedBodyStatementAmount)
+	}
+
+	bodyExpressionStatement, ok := macro.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("[Test] Invalid body statement type: received %T, expected *ast.ExpressionStatement", macro.Body.Statements[0])
+	}
+
+	testInfixExpression(t, bodyExpressionStatement.Value, "+", token.TokenLiteral("x"), token.TokenLiteral("y"))
+}
+
 func testParserErrors(t *testing.T, parser *Parser) {
 	errorsAmount := len(parser.Errors)
 	if errorsAmount == 0 {

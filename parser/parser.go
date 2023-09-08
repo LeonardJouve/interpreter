@@ -107,6 +107,7 @@ func (parser *Parser) addPrefixParsers() {
 		token.STRING:     parser.parseStringLiteral,
 		token.LBRACKET:   parser.parseArrayLiteral,
 		token.LBRACE:     parser.parseHashLiteral,
+		token.MACRO:      parser.parseMacroLiteral,
 	}
 }
 
@@ -530,4 +531,24 @@ func (parser *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	}
 
 	return indexExpression
+}
+
+func (parser *Parser) parseMacroLiteral() ast.Expression {
+	macroLiteral := &ast.MacroLiteral{
+		Token: parser.tok,
+	}
+
+	if !parser.expectNextTokenType(token.LPAREN) {
+		return nil
+	}
+
+	macroLiteral.Parameters = parser.parseFunctionParameters()
+
+	if !parser.expectNextTokenType(token.LBRACE) {
+		return nil
+	}
+
+	macroLiteral.Body = parser.parseBlockStatement()
+
+	return macroLiteral
 }

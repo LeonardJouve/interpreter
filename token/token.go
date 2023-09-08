@@ -46,6 +46,8 @@ const (
 	LET      = "LET"
 	TRUE     = "TRUE"
 	FALSE    = "FALSE"
+
+	MACRO = "MACRO"
 )
 
 var keywords = map[TokenLiteral]TokenType{
@@ -56,6 +58,7 @@ var keywords = map[TokenLiteral]TokenType{
 	"let":    LET,
 	"true":   TRUE,
 	"false":  FALSE,
+	"macro":  MACRO,
 }
 
 func GetKeywordFromType(tokenType TokenType) (TokenLiteral, bool) {
